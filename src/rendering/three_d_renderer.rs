@@ -25,12 +25,12 @@ pub struct ThreedRenderer {
     control: FlyControl,
     lights: Vec<DirectionalLight>,
 
-    objects: Vec<Arc<Mutex<dyn Object>>>,
+    objects: Vec<Box<dyn Object>>,
 }
 
 impl ThreedRenderer {
     /// creates new three_d renderer
-    pub fn new(objects: &[Arc<Mutex<dyn Object>>]) -> Self {
+    pub fn new(objects: &[Box<dyn Object>]) -> Self {
         let window = Window::new(WindowSettings {
             title: "game engine window".to_string(),
             max_size: Some((1920, 1080)),
@@ -77,15 +77,10 @@ impl Renderer for ThreedRenderer {
             .objects
             .iter()
             .filter_map(|o| {
-                let transform = o
-                    .clone()
-                    .lock()
-                    .expect("poisoned mutex")
-                    .transform()
-                    .clone();
-                let position = transform.lock().expect("poisoned mutex").position();
-                let rotation = transform.lock().expect("poisoned mutex").rotation();
-                let scale = transform.lock().expect("poisoned mutex").scale();
+                let transform = o.clone().transform().clone();
+                let position = transform.position();
+                let rotation = transform.rotation();
+                let scale = transform.scale();
                 let mut gm = match object_get_gm(o) {
                     Ok(gm) => gm,
                     Err(e) => {
@@ -120,21 +115,14 @@ impl Renderer for ThreedRenderer {
         Ok(())
     }
 
-    fn set_objects(&mut self, objects: &[Arc<Mutex<dyn Object>>]) {
+    fn set_objects(&mut self, objects: &[Box<dyn Object>]) {
         self.objects = objects.to_vec();
     }
 }
 
 /// takes a reference to an object and gets a GM geometry and material instance
-fn object_get_gm(object: &Arc<Mutex<dyn Object>>) -> anyhow::Result<Gm<Mesh, ColorMaterial>> {
+fn object_get_gm(object: &Box<dyn Object>) -> anyhow::Result<Gm<Mesh, ColorMaterial>> {
     let obj = object.clone();
 
-    Ok(obj
-        .lock()
-        .expect("poisoned mutex")
-        .model()
-        .ok_or(anyhow!("missing model"))?
-        .lock()
-        .expect("poisoned mutex")
-        .gm())
+    Ok(obj.model().ok_or(anyhow!("missing model"))?.gm())
 }

@@ -12,7 +12,7 @@ use game_engine_lib::{
 use three_d::{ColorMaterial, Context, CpuMaterial, CpuMesh, Gm, Mesh, PhysicalMaterial, Srgba};
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct TestTransform {
     position: Vector3<f32>,
     rotation: Quaternion<f32>,
@@ -34,6 +34,13 @@ impl Transform for TestTransform {
     }
     fn scale(&self) -> f32 {
         self.scale
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn clone_box(&self) -> Box<dyn Transform> {
+        Box::new(self.clone())
     }
 }
 
@@ -78,19 +85,27 @@ impl Model for TestModel {
             },
         )
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn clone_box(&self) -> Box<dyn Model> {
+        Box::new(self.clone())
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct TestObj {
-    transform: Arc<Mutex<TestTransform>>,
-    model: Arc<Mutex<TestModel>>,
+    transform: Box<TestTransform>,
+    model: Box<TestModel>,
 }
 
 impl TestObj {
     pub fn new(transform: TestTransform, model: TestModel) -> Self {
         Self {
-            transform: Arc::new(Mutex::new(transform)),
-            model: Arc::new(Mutex::new(model)),
+            transform: Box::new(transform),
+            model: Box::new(model),
         }
     }
 }
@@ -106,12 +121,20 @@ impl Object for TestObj {
         Uuid::new_v4()
     }
 
-    fn model(&self) -> Option<Arc<Mutex<dyn game_engine_lib::engine::object::Model>>> {
+    fn model(&self) -> Option<Box<dyn game_engine_lib::engine::object::Model>> {
         Some(self.model.clone())
     }
 
-    fn transform(&self) -> Arc<Mutex<dyn Transform>> {
+    fn transform(&self) -> Box<dyn Transform> {
         self.transform.clone()
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn clone_box(&self) -> Box<dyn Object> {
+        Box::new(self.clone())
     }
 }
 
@@ -125,8 +148,8 @@ fn main() {
     let model = TestModel {
         context: renderer.renderer.context.clone(),
     };
-    let mut objects: Vec<Arc<Mutex<dyn Object>>> = Vec::new();
-    objects.push(Arc::new(Mutex::new(TestObj::new(transform, model))));
+    let mut objects: Vec<Box<dyn Object>> = Vec::new();
+    objects.push(Box::new(TestObj::new(transform, model)));
     renderer.set_objects(objects.as_slice());
 
     renderer.start_render().unwrap();
