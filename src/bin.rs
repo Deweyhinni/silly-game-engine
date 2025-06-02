@@ -16,6 +16,7 @@ use uuid::Uuid;
 pub struct TestTransform {
     position: Vector3<f32>,
     rotation: Quaternion<f32>,
+    scale: f32,
 }
 
 impl Display for TestTransform {
@@ -31,9 +32,12 @@ impl Transform for TestTransform {
     fn rotation(&self) -> Quaternion<f32> {
         self.rotation
     }
+    fn scale(&self) -> f32 {
+        self.scale
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TestModel {
     context: Context,
 }
@@ -76,7 +80,7 @@ impl Model for TestModel {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TestObj {
     transform: Arc<Mutex<TestTransform>>,
     model: Arc<Mutex<TestModel>>,
@@ -115,7 +119,8 @@ fn main() {
     let mut renderer = EngineRenderer::new(&[]);
     let transform = TestTransform {
         position: Vector3::new(0.0, 0.0, 0.0),
-        rotation: Quaternion::from_axis_angle(Vector3::new(1.0, 0.0, 1.0), Deg(25.0)),
+        rotation: Quaternion::from_axis_angle(Vector3::new(1.0, 0.0, 0.0), Deg(45.0)),
+        scale: 10.0,
     };
     let model = TestModel {
         context: renderer.renderer.context.clone(),

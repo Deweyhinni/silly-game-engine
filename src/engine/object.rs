@@ -16,10 +16,11 @@ pub trait Model: Debug + Display {
 pub trait Transform: Debug + Display {
     fn position(&self) -> Vector3<f32>;
     fn rotation(&self) -> Quaternion<f32>;
+    fn scale(&self) -> f32;
 }
 
 /// trait for creating game object structs
-pub trait Object: Debug + Display {
+pub trait Object: Debug + Display + Send + Sync {
     fn id(&self) -> Uuid;
     fn model(&self) -> Option<Arc<Mutex<dyn Model>>>;
     fn transform(&self) -> Arc<Mutex<dyn Transform>>;

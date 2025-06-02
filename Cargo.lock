@@ -883,6 +883,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cgmath",
+ "log",
  "three-d",
  "uuid",
 ]

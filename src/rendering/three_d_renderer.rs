@@ -6,6 +6,7 @@ use std::{
 use anyhow::anyhow;
 
 use cgmath::{Matrix4, vec3};
+use log::info;
 use three_d::{
     Axes, Camera, ClearState, ColorMaterial, Context, CpuMaterial, CpuMesh, CpuModel,
     DirectionalLight, FlyControl, FrameOutput, Gm, Mat4, Mesh, PhysicalMaterial, Srgba, Vec3,
@@ -32,7 +33,7 @@ impl ThreedRenderer {
     pub fn new(objects: &[Arc<Mutex<dyn Object>>]) -> Self {
         let window = Window::new(WindowSettings {
             title: "game engine window".to_string(),
-            max_size: Some((1280, 720)),
+            max_size: Some((1920, 1080)),
             ..Default::default()
         })
         .expect("failed to create window");
@@ -75,7 +76,7 @@ impl Renderer for ThreedRenderer {
         let obj_gms: Vec<_> = self
             .objects
             .iter()
-            .map(|o| {
+            .filter_map(|o| {
                 let transform = o
                     .clone()
                     .lock()
@@ -84,21 +85,22 @@ impl Renderer for ThreedRenderer {
                     .clone();
                 let position = transform.lock().expect("poisoned mutex").position();
                 let rotation = transform.lock().expect("poisoned mutex").rotation();
-                let mut gm = object_get_gm(o).expect("getting gm from object failed");
-                let transform_mat = Matrix4::from_translation(position) * Matrix4::from(rotation);
+                let scale = transform.lock().expect("poisoned mutex").scale();
+                let mut gm = match object_get_gm(o) {
+                    Ok(gm) => gm,
+                    Err(e) => {
+                        info!("skipped model because enable to get Gm {e}");
+                        return None;
+                    }
+                };
+                let transform_mat = Matrix4::from_translation(position)
+                    * Matrix4::from(rotation)
+                    * Matrix4::from_scale(scale);
                 gm.set_transformation(transform_mat);
 
-                gm
+                Some(gm)
             })
             .collect();
-
-        let test_model = Gm::new(
-            Mesh::new(&self.context, &CpuMesh::cube()),
-            ColorMaterial {
-                color: Srgba::RED,
-                ..Default::default()
-            },
-        );
 
         let axes = Axes::new(&self.context, 0.5, 10.0);
 
@@ -110,7 +112,7 @@ impl Renderer for ThreedRenderer {
             frame_input
                 .screen()
                 .clear(ClearState::color_and_depth(0.5, 0.8, 0.8, 1.0, 1.0))
-                .render(&self.camera, &[&test_model], &[&self.lights[0]]);
+                .render(&self.camera, &obj_gms, &[&self.lights[0]]);
 
             FrameOutput::default()
         });
