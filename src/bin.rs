@@ -8,6 +8,7 @@ use game_engine_lib::{
     self,
     engine::object::{Model, Object, Transform},
     rendering::EngineRenderer,
+    utils::{SharedBox, new_shared_box},
 };
 use three_d::{ColorMaterial, Context, CpuMaterial, CpuMesh, Gm, Mesh, PhysicalMaterial, Srgba};
 use uuid::Uuid;
@@ -148,8 +149,10 @@ fn main() {
     let model = TestModel {
         context: renderer.renderer.context.clone(),
     };
-    let mut objects: Vec<Box<dyn Object>> = Vec::new();
-    objects.push(Box::new(TestObj::new(transform, model)));
+    let mut objects: Vec<SharedBox<dyn Object>> = Vec::new();
+    objects.push(Arc::new(Mutex::new(Box::new(TestObj::new(
+        transform, model,
+    )))));
     renderer.set_objects(objects.as_slice());
 
     renderer.start_render().unwrap();
