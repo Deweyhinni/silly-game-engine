@@ -1,0 +1,18 @@
+[package]
+name = "silly-game-engine"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "game_engine_lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "game_engine_bin"
+path = "src/bin.rs"
+
+[dependencies]
+anyhow = "1.0.98"
+cgmath = "0.18.0"
+three-d = "0.18.2"
+uuid = { version = "1.17.0", features = ["rng", "v4"] }
