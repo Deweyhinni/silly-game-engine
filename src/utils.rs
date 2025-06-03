@@ -15,6 +15,12 @@ pub const fn rad_to_deg(rad: f64) -> f64 {
 
 pub type SharedBox<T> = Arc<Mutex<Box<T>>>;
 
-pub fn new_shared_box<T>(i: T) -> SharedBox<T> {
-    Arc::new(Mutex::new(Box::new(i)))
+pub fn new_shared_box<T>(t: T) -> SharedBox<T> {
+    Arc::new(Mutex::new(Box::new(t)))
+}
+
+pub type Shared<T> = Arc<Mutex<T>>;
+
+pub fn new_shared<T>(t: T) -> Shared<T> {
+    Arc::new(Mutex::new(t))
 }

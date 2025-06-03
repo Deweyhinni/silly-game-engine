@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::anyhow;
 
-use cgmath::{Matrix4, vec3};
+use cgmath::{InnerSpace, Matrix4, vec3};
 use log::info;
 use three_d::{
     Axes, Camera, ClearState, ColorMaterial, Context, CpuMaterial, CpuMesh, CpuModel,
@@ -80,19 +80,16 @@ impl Renderer for ThreedRenderer {
             .objects
             .iter()
             .filter_map(|o| {
-                let transform = o
-                    .clone()
-                    .lock()
-                    .expect("poisoned mutex")
-                    .transform()
-                    .clone();
-                let position = transform.position();
-                let rotation = transform.rotation();
-                let scale = transform.scale();
+                let transform_arc = o.lock().expect("poisoned mutex").transform();
+                let mut transform = transform_arc.lock().expect("poisoned mutex");
+                let position = transform.position;
+                transform.position.x += 10.0;
+                let rotation = transform.rotation;
+                let scale = transform.scale;
                 let mut gm = match object_get_gm(o) {
                     Ok(gm) => gm,
                     Err(e) => {
-                        info!("skipped model because enable to get Gm {e}");
+                        info!("skipped model because unable to get Gm {e}");
                         return None;
                     }
                 };
@@ -137,5 +134,7 @@ fn object_get_gm(object: &SharedBox<dyn Object>) -> anyhow::Result<Gm<Mesh, Colo
         .expect("poisoned mutex")
         .model()
         .ok_or(anyhow!("missing model"))?
+        .lock()
+        .expect("poisoned mutex")
         .gm())
 }

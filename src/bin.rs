@@ -1,49 +1,25 @@
+#![feature(box_into_inner)]
+
 use std::{
     fmt::Display,
+    ops::Deref,
     sync::{Arc, Mutex},
+    thread,
+    time::Duration,
 };
 
-use cgmath::{Deg, Quaternion, Rotation3, Vector3};
+use cgmath::{Deg, InnerSpace, Quaternion, Rotation3, Vector3};
 use game_engine_lib::{
     self,
-    engine::object::{Model, Object, Transform},
+    engine::{
+        component::Transform3D,
+        object::{Model, Object},
+    },
     rendering::EngineRenderer,
-    utils::{SharedBox, new_shared_box},
+    utils::{Shared, SharedBox, new_shared, new_shared_box},
 };
 use three_d::{ColorMaterial, Context, CpuMaterial, CpuMesh, Gm, Mesh, PhysicalMaterial, Srgba};
 use uuid::Uuid;
-
-#[derive(Debug, Clone, Copy)]
-pub struct TestTransform {
-    position: Vector3<f32>,
-    rotation: Quaternion<f32>,
-    scale: f32,
-}
-
-impl Display for TestTransform {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}; {:?}", self.position, self.rotation)
-    }
-}
-
-impl Transform for TestTransform {
-    fn position(&self) -> Vector3<f32> {
-        self.position
-    }
-    fn rotation(&self) -> Quaternion<f32> {
-        self.rotation
-    }
-    fn scale(&self) -> f32 {
-        self.scale
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-    fn clone_box(&self) -> Box<dyn Transform> {
-        Box::new(self.clone())
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct TestModel {
@@ -98,15 +74,15 @@ impl Model for TestModel {
 
 #[derive(Debug, Clone)]
 pub struct TestObj {
-    transform: Box<TestTransform>,
-    model: Box<TestModel>,
+    transform: Shared<Transform3D>,
+    model: SharedBox<TestModel>,
 }
 
 impl TestObj {
-    pub fn new(transform: TestTransform, model: TestModel) -> Self {
+    pub fn new(transform: Transform3D, model: TestModel) -> Self {
         Self {
-            transform: Box::new(transform),
-            model: Box::new(model),
+            transform: new_shared(transform),
+            model: new_shared_box(model),
         }
     }
 }
@@ -122,12 +98,13 @@ impl Object for TestObj {
         Uuid::new_v4()
     }
 
-    fn model(&self) -> Option<Box<dyn game_engine_lib::engine::object::Model>> {
-        Some(self.model.clone())
+    fn model(&self) -> Option<SharedBox<dyn game_engine_lib::engine::object::Model>> {
+        let model_clone = Box::into_inner(self.model.lock().expect("poisoned mutex").clone());
+        Some(Arc::new(Mutex::new(Box::new(model_clone))))
     }
 
-    fn transform(&self) -> Box<dyn Transform> {
-        self.transform.clone()
+    fn transform(&self) -> Shared<Transform3D> {
+        Arc::clone(&self.transform)
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -141,9 +118,9 @@ impl Object for TestObj {
 
 fn main() {
     let mut renderer = EngineRenderer::new(&[]);
-    let transform = TestTransform {
-        position: Vector3::new(0.0, 0.0, 0.0),
-        rotation: Quaternion::from_axis_angle(Vector3::new(1.0, 0.0, 0.0), Deg(45.0)),
+    let transform = Transform3D {
+        position: Vector3::new(1.0, 0.5, 0.0),
+        rotation: Quaternion::from_axis_angle(Vector3::new(1.0, 0.0, 0.0).normalize(), Deg(45.0)),
         scale: 10.0,
     };
     let model = TestModel {
@@ -153,7 +130,23 @@ fn main() {
     objects.push(Arc::new(Mutex::new(Box::new(TestObj::new(
         transform, model,
     )))));
-    renderer.set_objects(objects.as_slice());
+    renderer.set_objects(objects.clone().as_slice());
+
+    thread::spawn(move || {
+        let objs = objects.clone();
+        for _ in 0..10 {
+            thread::sleep(Duration::from_secs(1));
+            // objs[0]
+            //     .lock()
+            //     .expect("poisoned lock")
+            //     .transform()
+            //     .lock()
+            //     .expect("poisoned lock")
+            //     .position
+            //     .x += 10.0;
+            println!("{:?}", objs[0]);
+        }
+    });
 
     renderer.start_render().unwrap();
 }
