@@ -17,6 +17,16 @@ pub struct Transform3D {
     pub scale: f32,
 }
 
+impl Transform3D {
+    pub fn new(position: Vector3<f32>, rotation: Quaternion<f32>, scale: f32) -> Self {
+        Self {
+            position,
+            rotation,
+            scale,
+        }
+    }
+}
+
 impl Component for Transform3D {
     fn label(&self) -> &str {
         "Transform3D"

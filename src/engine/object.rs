@@ -23,7 +23,8 @@ pub trait Model: Debug + Display + Send + Sync {
 pub trait Object: Debug + Display + Send + Sync {
     fn id(&self) -> Uuid;
     fn model(&self) -> Option<SharedBox<dyn Model>>;
-    fn transform(&self) -> Shared<Transform3D>;
+    fn transform(&self) -> Transform3D;
+    fn transform_mut(&mut self) -> &mut Transform3D;
 
     fn update(&mut self, delta: f64);
     fn physics_update(&mut self, delta: f64);

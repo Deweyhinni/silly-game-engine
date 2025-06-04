@@ -94,8 +94,7 @@ impl Renderer for ThreedRenderer {
                 .objects
                 .iter()
                 .filter_map(|o| {
-                    let transform_arc = o.lock().expect("poisoned mutex").transform();
-                    let transform = transform_arc.lock().expect("poisoned mutex");
+                    let transform = o.lock().expect("poisoned mutex").transform();
                     let position = transform.position;
                     let rotation = transform.rotation;
                     let scale = transform.scale;

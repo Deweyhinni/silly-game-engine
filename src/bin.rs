@@ -62,14 +62,14 @@ impl Model for TestModel {
 
 #[derive(Debug, Clone)]
 pub struct TestObj {
-    transform: Shared<Transform3D>,
+    transform: Transform3D,
     model: SharedBox<TestModel>,
 }
 
 impl TestObj {
     pub fn new(transform: Transform3D, model: TestModel) -> Self {
         Self {
-            transform: new_shared(transform),
+            transform,
             model: new_shared_box(model),
         }
     }
@@ -91,12 +91,15 @@ impl Object for TestObj {
         Some(Arc::new(Mutex::new(Box::new(model_clone))))
     }
 
-    fn transform(&self) -> Shared<Transform3D> {
-        Arc::clone(&self.transform)
+    fn transform(&self) -> Transform3D {
+        self.transform
+    }
+    fn transform_mut(&mut self) -> &mut Transform3D {
+        &mut self.transform
     }
 
     fn update(&mut self, delta: f64) {
-        self.transform.lock().expect("poisoned mutex").position.x += 1.0 * delta as f32;
+        self.transform.position.x += 1.0 * delta as f32;
     }
 
     fn physics_update(&mut self, delta: f64) {
@@ -135,12 +138,9 @@ fn main() {
             objs[0]
                 .lock()
                 .expect("poisoned lock")
-                .transform()
-                .lock()
-                .expect("poisoned lock")
+                .transform_mut()
                 .position
-                .x += 2.0;
-            println!("{:?}", objs[0]);
+                .x += 1.0;
         }
     });
 
