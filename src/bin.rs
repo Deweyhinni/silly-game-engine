@@ -44,18 +44,6 @@ impl Model for TestModel {
     fn gm(&self) -> three_d::Gm<three_d::Mesh, three_d::ColorMaterial> {
         Gm::new(
             Mesh::new(&self.context, &CpuMesh::cube()),
-            // PhysicalMaterial::new_transparent(
-            //     &self.context,
-            //     &CpuMaterial {
-            //         albedo: Srgba {
-            //             r: 255,
-            //             g: 0,
-            //             b: 0,
-            //             a: 220,
-            //         },
-            //         ..Default::default()
-            //     },
-            // ),
             ColorMaterial {
                 color: Srgba::RED,
                 ..Default::default()
@@ -107,6 +95,14 @@ impl Object for TestObj {
         Arc::clone(&self.transform)
     }
 
+    fn update(&mut self, delta: f64) {
+        self.transform.lock().expect("poisoned mutex").position.x += 1.0 * delta as f32;
+    }
+
+    fn physics_update(&mut self, delta: f64) {
+        ()
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -136,14 +132,14 @@ fn main() {
         let objs = objects.clone();
         for _ in 0..10 {
             thread::sleep(Duration::from_secs(1));
-            // objs[0]
-            //     .lock()
-            //     .expect("poisoned lock")
-            //     .transform()
-            //     .lock()
-            //     .expect("poisoned lock")
-            //     .position
-            //     .x += 10.0;
+            objs[0]
+                .lock()
+                .expect("poisoned lock")
+                .transform()
+                .lock()
+                .expect("poisoned lock")
+                .position
+                .x += 2.0;
             println!("{:?}", objs[0]);
         }
     });

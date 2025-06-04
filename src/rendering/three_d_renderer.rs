@@ -5,13 +5,14 @@ use std::{
 
 use anyhow::anyhow;
 
-use cgmath::{InnerSpace, Matrix4, vec3};
+use cgmath::{Matrix4, vec3};
 use log::info;
 use three_d::{
-    Axes, Camera, ClearState, ColorMaterial, Context, CpuMaterial, CpuMesh, CpuModel,
-    DirectionalLight, FlyControl, FrameOutput, Gm, Mat4, Mesh, PhysicalMaterial, Srgba, Vec3,
-    Window, WindowSettings, degrees,
+    Axes, Camera, ClearState, ColorMaterial, Context, DirectionalLight, FlyControl, FrameOutput,
+    Gm, Mesh, Srgba, Vec3, Window, WindowSettings, degrees,
 };
+
+use three_d::Object as ThreedObject;
 
 use crate::{
     engine::object::{Model, Object},
@@ -76,32 +77,6 @@ impl ThreedRenderer {
 impl Renderer for ThreedRenderer {
     /// prepares models for rendering and starts render loop
     fn start_render(mut self) -> anyhow::Result<()> {
-        let obj_gms: Vec<_> = self
-            .objects
-            .iter()
-            .filter_map(|o| {
-                let transform_arc = o.lock().expect("poisoned mutex").transform();
-                let mut transform = transform_arc.lock().expect("poisoned mutex");
-                let position = transform.position;
-                transform.position.x += 10.0;
-                let rotation = transform.rotation;
-                let scale = transform.scale;
-                let mut gm = match object_get_gm(o) {
-                    Ok(gm) => gm,
-                    Err(e) => {
-                        info!("skipped model because unable to get Gm {e}");
-                        return None;
-                    }
-                };
-                let transform_mat = Matrix4::from_translation(position)
-                    * Matrix4::from(rotation)
-                    * Matrix4::from_scale(scale);
-                gm.set_transformation(transform_mat);
-
-                Some(gm)
-            })
-            .collect();
-
         let axes = Axes::new(&self.context, 0.5, 10.0);
 
         self.window.render_loop(move |mut frame_input| {
@@ -109,10 +84,50 @@ impl Renderer for ThreedRenderer {
             self.control
                 .handle_events(&mut self.camera, &mut frame_input.events);
 
+            let delta = frame_input.elapsed_time / 1000.0;
+
+            self.objects.iter().for_each(|o| {
+                o.lock().expect("poisoned mutex").update(delta);
+            });
+
+            let obj_gms: Vec<_> = self
+                .objects
+                .iter()
+                .filter_map(|o| {
+                    let transform_arc = o.lock().expect("poisoned mutex").transform();
+                    let transform = transform_arc.lock().expect("poisoned mutex");
+                    let position = transform.position;
+                    let rotation = transform.rotation;
+                    let scale = transform.scale;
+                    let mut gm = match object_get_gm(o) {
+                        Ok(gm) => gm,
+                        Err(e) => {
+                            info!("skipped model because unable to get Gm {e}");
+                            return None;
+                        }
+                    };
+                    let transform_mat = Matrix4::from_translation(position)
+                        * Matrix4::from(rotation)
+                        * Matrix4::from_scale(scale);
+                    gm.set_transformation(transform_mat);
+
+                    Some(gm)
+                })
+                .collect();
+
             frame_input
                 .screen()
                 .clear(ClearState::color_and_depth(0.5, 0.8, 0.8, 1.0, 1.0))
-                .render(&self.camera, &obj_gms, &[&self.lights[0]]);
+                // .render(&self.camera, &obj_gms, &[&self.lights[0]]);
+                .write(|| {
+                    for o in obj_gms {
+                        o.render(&self.camera, &[&self.lights[0]]);
+                    }
+
+                    axes.render(&self.camera, &[&self.lights[0]]);
+                    Ok::<(), std::io::Error>(())
+                })
+                .unwrap();
 
             FrameOutput::default()
         });

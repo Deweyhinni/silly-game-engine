@@ -25,6 +25,9 @@ pub trait Object: Debug + Display + Send + Sync {
     fn model(&self) -> Option<SharedBox<dyn Model>>;
     fn transform(&self) -> Shared<Transform3D>;
 
+    fn update(&mut self, delta: f64);
+    fn physics_update(&mut self, delta: f64);
+
     fn as_any(&self) -> &dyn std::any::Any;
     fn clone_box(&self) -> Box<dyn Object>;
 }
