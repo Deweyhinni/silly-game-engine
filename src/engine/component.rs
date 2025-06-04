@@ -3,7 +3,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use cgmath::{Quaternion, Vector3};
+use glam::{Quat, Vec3};
 
 pub trait Component: Debug + Send + Sync {
     fn label(&self) -> &str;
@@ -12,13 +12,13 @@ pub trait Component: Debug + Send + Sync {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Transform3D {
-    pub position: Vector3<f32>,
-    pub rotation: Quaternion<f32>,
-    pub scale: f32,
+    pub position: Vec3,
+    pub rotation: Quat,
+    pub scale: Vec3,
 }
 
 impl Transform3D {
-    pub fn new(position: Vector3<f32>, rotation: Quaternion<f32>, scale: f32) -> Self {
+    pub fn new(position: Vec3, rotation: Quat, scale: Vec3) -> Self {
         Self {
             position,
             rotation,

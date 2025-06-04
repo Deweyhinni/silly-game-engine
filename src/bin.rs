@@ -8,7 +8,8 @@ use std::{
     time::Duration,
 };
 
-use cgmath::{Deg, InnerSpace, Quaternion, Rotation3, Vector3};
+use glam::{Mat4, Quat, Vec3};
+
 use game_engine_lib::{
     self,
     engine::{
@@ -16,7 +17,7 @@ use game_engine_lib::{
         object::{Model, Object},
     },
     rendering::EngineRenderer,
-    utils::{Shared, SharedBox, new_shared, new_shared_box},
+    utils::{Shared, SharedBox, deg_to_rad, new_shared, new_shared_box},
 };
 use three_d::{ColorMaterial, Context, CpuMaterial, CpuMesh, Gm, Mesh, PhysicalMaterial, Srgba};
 use uuid::Uuid;
@@ -43,7 +44,7 @@ impl Display for TestModel {
 impl Model for TestModel {
     fn gm(&self) -> three_d::Gm<three_d::Mesh, three_d::ColorMaterial> {
         Gm::new(
-            Mesh::new(&self.context, &CpuMesh::cube()),
+            Mesh::new(&self.context, &CpuMesh::sphere(10)),
             ColorMaterial {
                 color: Srgba::RED,
                 ..Default::default()
@@ -118,9 +119,12 @@ impl Object for TestObj {
 fn main() {
     let mut renderer = EngineRenderer::new(&[]);
     let transform = Transform3D {
-        position: Vector3::new(1.0, 0.5, 0.0),
-        rotation: Quaternion::from_axis_angle(Vector3::new(1.0, 0.0, 0.0).normalize(), Deg(45.0)),
-        scale: 10.0,
+        position: Vec3::new(1.0, 0.5, 0.0),
+        rotation: Quat::from_axis_angle(
+            Vec3::new(1.0, 0.0, 0.0).normalize(),
+            deg_to_rad(45.0) as f32,
+        ),
+        scale: Vec3::new(10.0, 10.0, 10.0),
     };
     let model = TestModel {
         context: renderer.renderer.context.clone(),

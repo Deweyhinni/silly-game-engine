@@ -3,7 +3,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use cgmath::{Quaternion, Vector3};
 use three_d::{ColorMaterial, CpuMaterial, Geometry, Gm, Material, Mesh, PhysicalMaterial};
 use uuid::Uuid;
 

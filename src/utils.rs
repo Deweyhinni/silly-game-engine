@@ -24,3 +24,47 @@ pub type Shared<T> = Arc<Mutex<T>>;
 pub fn new_shared<T>(t: T) -> Shared<T> {
     Arc::new(Mutex::new(t))
 }
+
+pub trait IntoCgmath {
+    type Output;
+    fn into_cgmath(self) -> Self::Output;
+}
+
+impl IntoCgmath for glam::Vec3 {
+    type Output = cgmath::Vector3<f32>;
+
+    fn into_cgmath(self) -> Self::Output {
+        cgmath::Vector3::new(self.x, self.y, self.z)
+    }
+}
+
+impl IntoCgmath for glam::Mat4 {
+    type Output = cgmath::Matrix4<f32>;
+    fn into_cgmath(self) -> Self::Output {
+        cgmath::Matrix4::new(
+            self.x_axis.x,
+            self.x_axis.y,
+            self.x_axis.z,
+            self.x_axis.w,
+            self.y_axis.x,
+            self.y_axis.y,
+            self.y_axis.z,
+            self.y_axis.w,
+            self.z_axis.x,
+            self.z_axis.y,
+            self.z_axis.z,
+            self.z_axis.w,
+            self.w_axis.x,
+            self.w_axis.y,
+            self.w_axis.z,
+            self.w_axis.w,
+        )
+    }
+}
+
+impl IntoCgmath for glam::Quat {
+    type Output = cgmath::Quaternion<f32>;
+    fn into_cgmath(self) -> Self::Output {
+        cgmath::Quaternion::new(self.w, self.x, self.y, self.z)
+    }
+}

@@ -5,18 +5,19 @@ use std::{
 
 use anyhow::anyhow;
 
-use cgmath::{Matrix4, vec3};
+use cgmath::vec3;
+use glam::{Mat4, Vec3};
 use log::info;
 use three_d::{
     Axes, Camera, ClearState, ColorMaterial, Context, DirectionalLight, FlyControl, FrameOutput,
-    Gm, Mesh, Srgba, Vec3, Window, WindowSettings, degrees,
+    Gm, Mesh, Srgba, Window, WindowSettings, degrees,
 };
 
 use three_d::Object as ThreedObject;
 
 use crate::{
     engine::object::{Model, Object},
-    utils::SharedBox,
+    utils::{IntoCgmath, SharedBox},
 };
 
 use super::Renderer;
@@ -48,7 +49,7 @@ impl ThreedRenderer {
             window.viewport(),
             vec3(60.0, 50.0, 60.0),
             vec3(0.0, 0.0, 0.0),
-            Vec3::unit_y(),
+            Vec3::new(0.0, 1.0, 0.0).into_cgmath(),
             degrees(45.0),
             0.1,
             1000.0,
@@ -105,10 +106,10 @@ impl Renderer for ThreedRenderer {
                             return None;
                         }
                     };
-                    let transform_mat = Matrix4::from_translation(position)
-                        * Matrix4::from(rotation)
-                        * Matrix4::from_scale(scale);
-                    gm.set_transformation(transform_mat);
+                    let transform_mat = Mat4::from_translation(position)
+                        * Mat4::from_quat(rotation)
+                        * Mat4::from_scale(scale);
+                    gm.set_transformation(transform_mat.into_cgmath());
 
                     Some(gm)
                 })
