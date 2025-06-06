@@ -13,18 +13,21 @@ pub const fn rad_to_deg(rad: f64) -> f64 {
     rad * (180_f64 / PI)
 }
 
+/// type alias for Arc<Mutex<Box<T>>> bc i really can't be bothered to write that every time
 pub type SharedBox<T> = Arc<Mutex<Box<T>>>;
 
 pub fn new_shared_box<T>(t: T) -> SharedBox<T> {
     Arc::new(Mutex::new(Box::new(t)))
 }
 
+/// type alias for Arc<Mutex<T>> bc i can't be bothered to write that every time
 pub type Shared<T> = Arc<Mutex<T>>;
 
 pub fn new_shared<T>(t: T) -> Shared<T> {
     Arc::new(Mutex::new(t))
 }
 
+/// helper trait for turning glam types into cgmath types
 pub trait IntoCgmath {
     type Output;
     fn into_cgmath(self) -> Self::Output;

@@ -5,11 +5,13 @@ use std::{
 
 use glam::{Quat, Vec3};
 
+/// trait for creating components
 pub trait Component: Debug + Send + Sync {
     fn label(&self) -> &str;
     fn as_any(&self) -> &dyn Any;
 }
 
+/// 3 dimensional transform component
 #[derive(Debug, Clone, Copy)]
 pub struct Transform3D {
     pub position: Vec3,

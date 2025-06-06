@@ -44,7 +44,7 @@ impl Display for TestModel {
 impl Model for TestModel {
     fn gm(&self) -> three_d::Gm<three_d::Mesh, three_d::ColorMaterial> {
         Gm::new(
-            Mesh::new(&self.context, &CpuMesh::sphere(10)),
+            Mesh::new(&self.context, &CpuMesh::cube()),
             ColorMaterial {
                 color: Srgba::RED,
                 ..Default::default()
