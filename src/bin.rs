@@ -13,7 +13,9 @@ use glam::{Mat4, Quat, Vec3};
 use game_engine_lib::{
     self,
     engine::{
+        Engine,
         component::Transform3D,
+        event::EventHandler,
         object::{Model, Object},
     },
     rendering::EngineRenderer,
@@ -117,7 +119,7 @@ impl Object for TestObj {
 }
 
 fn main() {
-    let mut renderer = EngineRenderer::new(&[]);
+    let engine = Engine::new();
     let transform = Transform3D {
         position: Vec3::new(1.0, 0.5, 0.0),
         rotation: Quat::from_axis_angle(
@@ -126,14 +128,22 @@ fn main() {
         ),
         scale: Vec3::new(10.0, 10.0, 10.0),
     };
+    let mut objects: Vec<SharedBox<dyn Object>> = Vec::new();
+    let renderer = EngineRenderer::new(game_engine_lib::rendering::RendererType::ThreeD, &objects);
     let model = TestModel {
         context: renderer.renderer.context.clone(),
     };
-    let mut objects: Vec<SharedBox<dyn Object>> = Vec::new();
     objects.push(Arc::new(Mutex::new(Box::new(TestObj::new(
         transform, model,
     )))));
-    renderer.set_objects(objects.clone().as_slice());
+
+    let engine = engine
+        .into_init(
+            &objects,
+            game_engine_lib::rendering::RendererType::ThreeD,
+            renderer,
+        )
+        .unwrap();
 
     thread::spawn(move || {
         let objs = objects.clone();
@@ -147,6 +157,4 @@ fn main() {
                 .x += 1.0;
         }
     });
-
-    renderer.start_render().unwrap();
 }

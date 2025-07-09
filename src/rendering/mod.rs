@@ -12,6 +12,10 @@ pub trait Renderer {
     fn set_objects(&mut self, objects: &[SharedBox<dyn Object>]);
 }
 
+pub enum RendererType {
+    ThreeD,
+}
+
 /// basic renderer abstraction
 pub struct EngineRenderer {
     pub objects: Vec<SharedBox<dyn Object>>,
@@ -20,10 +24,13 @@ pub struct EngineRenderer {
 
 impl EngineRenderer {
     /// create new EngineRenderer
-    pub fn new(objects: &[SharedBox<dyn Object>]) -> Self {
+    pub fn new(renderer_type: RendererType, objects: &[SharedBox<dyn Object>]) -> Self {
+        let renderer = match renderer_type {
+            RendererType::ThreeD => ThreedRenderer::new(objects),
+        };
         Self {
             objects: objects.to_vec(),
-            renderer: ThreedRenderer::new(objects),
+            renderer,
         }
     }
 
@@ -34,7 +41,7 @@ impl EngineRenderer {
     }
 
     /// starts renderer
-    pub fn start_render(mut self) -> anyhow::Result<()> {
+    pub fn start_render(self) -> anyhow::Result<()> {
         self.renderer.start_render()
     }
 }

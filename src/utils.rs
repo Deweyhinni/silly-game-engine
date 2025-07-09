@@ -27,6 +27,8 @@ pub fn new_shared<T>(t: T) -> Shared<T> {
     Arc::new(Mutex::new(t))
 }
 
+pub type WeakShared<T> = std::sync::Weak<Mutex<T>>;
+
 /// helper trait for turning glam types into cgmath types
 pub trait IntoCgmath {
     type Output;
