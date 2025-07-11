@@ -1,3 +1,4 @@
+#![allow(unused)]
 #![feature(box_into_inner)]
 
 use std::{
@@ -18,11 +19,16 @@ use game_engine_lib::{
         event::EventHandler,
         object::{Model, Object},
     },
-    rendering::EngineRenderer,
+    rendering::{EngineRenderer, RendererType},
     utils::{Shared, SharedBox, deg_to_rad, new_shared, new_shared_box},
+    windowing::windower::Windower,
 };
 use three_d::{ColorMaterial, Context, CpuMaterial, CpuMesh, Gm, Mesh, PhysicalMaterial, Srgba};
 use uuid::Uuid;
+use winit::{
+    dpi::{LogicalPosition, LogicalSize},
+    window::WindowAttributes,
+};
 
 #[derive(Debug, Clone)]
 pub struct TestModel {
@@ -119,7 +125,10 @@ impl Object for TestObj {
 }
 
 fn main() {
-    let engine = Engine::new();
+    env_logger::init();
+    log::info!("logger init");
+    let mut objects: Vec<SharedBox<dyn Object>> = Vec::new();
+    let mut engine = Engine::new(RendererType::ThreeD, &objects);
     let transform = Transform3D {
         position: Vec3::new(1.0, 0.5, 0.0),
         rotation: Quat::from_axis_angle(
@@ -128,33 +137,21 @@ fn main() {
         ),
         scale: Vec3::new(10.0, 10.0, 10.0),
     };
-    let mut objects: Vec<SharedBox<dyn Object>> = Vec::new();
-    let renderer = EngineRenderer::new(game_engine_lib::rendering::RendererType::ThreeD, &objects);
-    let model = TestModel {
-        context: renderer.renderer.context.clone(),
-    };
-    objects.push(Arc::new(Mutex::new(Box::new(TestObj::new(
-        transform, model,
-    )))));
 
-    let engine = engine
-        .into_init(
-            &objects,
-            game_engine_lib::rendering::RendererType::ThreeD,
-            renderer,
-        )
-        .unwrap();
+    // let model = TestModel {
+    //     context: engine.renderer.renderer.context.unwrap().clone(),
+    // };
+    // objects.push(Arc::new(Mutex::new(Box::new(TestObj::new(
+    //     transform, model,
+    // )))));
 
-    thread::spawn(move || {
-        let objs = objects.clone();
-        for _ in 0..10 {
-            thread::sleep(Duration::from_secs(1));
-            objs[0]
-                .lock()
-                .expect("poisoned lock")
-                .transform_mut()
-                .position
-                .x += 1.0;
-        }
-    });
+    let mut windower = Windower::new(
+        engine,
+        WindowAttributes::default()
+            .with_title("meow")
+            .with_position(LogicalPosition::new(0, 0))
+            .with_inner_size(LogicalSize::new(1280, 720)),
+    );
+
+    windower.run().unwrap();
 }

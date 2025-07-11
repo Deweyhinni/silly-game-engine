@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use three_d::{ColorMaterial, CpuMaterial, Geometry, Gm, Material, Mesh, PhysicalMaterial};
+use three_d::{ColorMaterial, Gm, Mesh};
 use uuid::Uuid;
 
 use crate::utils::{Shared, SharedBox};

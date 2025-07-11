@@ -14,8 +14,9 @@ path = "src/bin.rs"
 [dependencies]
 anyhow = "1.0.98"
 cgmath = "0.18.0"
+env_logger = "0.11.8"
 glam = "0.30.3"
 log = "0.4.27"
-three-d = "0.18.2"
+three-d = { git = "https://github.com/paul2t/three-d.git", branch = "winit-0.30" }
 uuid = { version = "1.17.0", features = ["rng", "v4"] }
 winit = "0.30.11"

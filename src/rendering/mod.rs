@@ -1,17 +1,49 @@
 mod three_d_renderer;
 
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::VecDeque,
+    rc::Rc,
+    sync::{Arc, Mutex, Weak},
+};
 
 use three_d_renderer::ThreedRenderer;
+use winit::{
+    event::WindowEvent,
+    window::{Window, WindowId},
+};
 
-use crate::{engine::object::Object, utils::SharedBox};
+use crate::{
+    engine::{Engine, messages::Message, object::Object},
+    utils::{SharedBox, WeakShared},
+};
 
 /// trait for renderers, not really used yet
 pub trait Renderer {
-    fn start_render(self) -> anyhow::Result<()>;
+    // fn start_render(self) -> anyhow::Result<()>;
+    fn render(&mut self, window: Arc<Window>) -> anyhow::Result<()>;
+    fn handle_resize(&mut self, window: Arc<Window>, event: &WindowEvent) -> anyhow::Result<()>;
+    fn handle_scale_factor_change(
+        &mut self,
+        window: Arc<Window>,
+        event: &WindowEvent,
+    ) -> anyhow::Result<()>;
+    fn handle_close(&mut self, window: Arc<Window>, event: &WindowEvent) -> anyhow::Result<()>;
     fn set_objects(&mut self, objects: &[SharedBox<dyn Object>]);
+
+    fn get_messages(&self) -> &VecDeque<Message>;
+    fn get_messages_mut(&mut self) -> &mut VecDeque<Message>;
+    fn clear_messages(&mut self);
 }
 
+#[derive(Debug, Clone)]
+pub enum RendererCommand {
+    Render(WindowId),
+    HandleResize((WindowId, WindowEvent)),
+    HandleScaleChange((WindowId, WindowEvent)),
+    HandleClose((WindowId, WindowEvent)),
+}
+
+#[derive(Debug, Clone)]
 pub enum RendererType {
     ThreeD,
 }
@@ -40,8 +72,20 @@ impl EngineRenderer {
         self.renderer.set_objects(objects);
     }
 
-    /// starts renderer
-    pub fn start_render(self) -> anyhow::Result<()> {
-        self.renderer.start_render()
+    /// renders frame
+    pub fn render(&mut self, window: Arc<Window>) -> anyhow::Result<()> {
+        self.renderer.render(window)
+    }
+
+    pub fn get_messages(&self) -> &VecDeque<Message> {
+        self.renderer.get_messages()
+    }
+
+    pub fn get_messages_mut(&mut self) -> &mut VecDeque<Message> {
+        self.renderer.get_messages_mut()
+    }
+
+    pub fn clear_messages(&mut self) {
+        self.renderer.clear_messages();
     }
 }

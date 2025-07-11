@@ -1,7 +1,4 @@
-use std::{
-    any::Any,
-    fmt::{Debug, Display},
-};
+use std::{any::Any, fmt::Debug};
 
 use glam::{Quat, Vec3};
 
