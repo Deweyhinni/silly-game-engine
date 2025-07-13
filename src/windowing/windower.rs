@@ -102,7 +102,6 @@ impl ApplicationHandler for Windower {
 
         match event {
             winit::event::WindowEvent::RedrawRequested => {
-                log::info!("redraw");
                 let redraw_msg = Message {
                     from: Systems::Windower,
                     to: Systems::Renderer,
@@ -114,8 +113,6 @@ impl ApplicationHandler for Windower {
                 };
 
                 self.engine.handle_render(Arc::clone(window));
-                log::info!("handled render");
-
                 let complete_msg = Message {
                     from: Systems::Windower,
                     to: Systems::Engine,
@@ -161,9 +158,14 @@ impl ApplicationHandler for Windower {
                         ))),
                     },
                 };
+                log::info!("close requested");
+                self.engine
+                    .renderer
+                    .renderer
+                    .handle_close(Arc::clone(window), &event)
+                    .unwrap();
                 self.windows.write().unwrap().clear();
                 event_loop.exit();
-                log::info!("cleared");
             }
             e => {
                 let msg = Message {

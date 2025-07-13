@@ -12,17 +12,18 @@ use three_d::{
     WindowedContext, degrees,
 };
 
-use three_d::Object as ThreedObject;
+use three_d::Object;
 use winit::{
     event::WindowEvent,
     window::{Window, WindowId},
 };
 
+use crate::engine::entity::{EntityContainer, EntityRegistry};
 use crate::engine::messages::Message;
 use crate::{
     engine::{
         Engine,
-        object::{Model, Object},
+        entity::{Entity, Model},
     },
     utils::{IntoCgmath, SharedBox, WeakShared},
 };
@@ -37,15 +38,13 @@ pub struct ThreedRenderer {
     control: FlyControl,
     lights: Vec<DirectionalLight>,
 
-    objects: Vec<SharedBox<dyn Object>>,
+    objects: EntityRegistry,
     messages: VecDeque<Message>,
 }
 
 impl ThreedRenderer {
     /// creates new three_d renderer
-    pub fn new(objects: &[SharedBox<dyn Object>]) -> Self {
-        log::info!("meow 2");
-
+    pub fn new(objects: EntityRegistry) -> Self {
         let mut camera = Camera::new_perspective(
             three_d::Viewport::new_at_origo(1, 1),
             vec3(60.0, 50.0, 60.0),
@@ -65,7 +64,7 @@ impl ThreedRenderer {
             control,
             lights,
 
-            objects: objects.to_vec(),
+            objects,
             messages: VecDeque::new(),
         }
     }
@@ -96,13 +95,14 @@ impl ThreedRenderer {
 
         let delta = frame_input.elapsed_time / 1000.0;
 
-        self.objects.iter().for_each(|o| {
+        self.objects.clone().into_iter().for_each(|o| {
             o.lock().expect("poisoned mutex").update(delta);
         });
 
         let obj_gms: Vec<_> = self
             .objects
-            .iter()
+            .clone()
+            .into_iter()
             .filter_map(|o| {
                 let transform = o.lock().expect("poisoned mutex").transform();
                 let position = transform.position;
@@ -207,8 +207,8 @@ impl Renderer for ThreedRenderer {
         Ok(())
     }
 
-    fn set_objects(&mut self, objects: &[SharedBox<dyn Object>]) {
-        self.objects = objects.to_vec();
+    fn set_objects(&mut self, objects: EntityRegistry) {
+        self.objects = objects;
     }
 
     fn get_messages(&self) -> &VecDeque<Message> {
@@ -225,7 +225,7 @@ impl Renderer for ThreedRenderer {
 }
 
 /// takes a reference to an object and gets a GM geometry and material instance
-fn object_get_gm(object: &SharedBox<dyn Object>) -> anyhow::Result<Gm<Mesh, ColorMaterial>> {
+fn object_get_gm(object: EntityContainer) -> anyhow::Result<Gm<Mesh, ColorMaterial>> {
     let obj = object.clone();
 
     Ok(obj

@@ -4,7 +4,7 @@
 use std::{
     fmt::Display,
     ops::Deref,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
     thread,
     time::Duration,
 };
@@ -16,8 +16,8 @@ use game_engine_lib::{
     engine::{
         Engine,
         component::Transform3D,
+        entity::{Entity, EntityContainer, EntityRegistry, Model},
         event::EventHandler,
-        object::{Model, Object},
     },
     rendering::{EngineRenderer, RendererType},
     utils::{Shared, SharedBox, deg_to_rad, new_shared, new_shared_box},
@@ -90,12 +90,12 @@ impl Display for TestObj {
     }
 }
 
-impl Object for TestObj {
+impl Entity for TestObj {
     fn id(&self) -> uuid::Uuid {
         Uuid::new_v4()
     }
 
-    fn model(&self) -> Option<SharedBox<dyn game_engine_lib::engine::object::Model>> {
+    fn model(&self) -> Option<SharedBox<dyn game_engine_lib::engine::entity::Model>> {
         let model_clone = Box::into_inner(self.model.lock().expect("poisoned mutex").clone());
         Some(Arc::new(Mutex::new(Box::new(model_clone))))
     }
@@ -119,31 +119,37 @@ impl Object for TestObj {
         self
     }
 
-    fn clone_box(&self) -> Box<dyn Object> {
+    fn clone_box(&self) -> Box<dyn Entity> {
         Box::new(self.clone())
+    }
+
+    fn into_container(self) -> EntityContainer {
+        EntityContainer::new(Box::new(self))
     }
 }
 
 fn main() {
     env_logger::init();
     log::info!("logger init");
-    let mut objects: Vec<SharedBox<dyn Object>> = Vec::new();
-    let mut engine = Engine::new(RendererType::ThreeD, &objects);
-    let transform = Transform3D {
-        position: Vec3::new(1.0, 0.5, 0.0),
-        rotation: Quat::from_axis_angle(
-            Vec3::new(1.0, 0.0, 0.0).normalize(),
-            deg_to_rad(45.0) as f32,
-        ),
-        scale: Vec3::new(10.0, 10.0, 10.0),
-    };
+    let mut entities = EntityRegistry::new();
+    let mut engine = Engine::new(RendererType::ThreeD, entities.clone());
 
-    // let model = TestModel {
-    //     context: engine.renderer.renderer.context.unwrap().clone(),
+    // let transform = Transform3D {
+    //     position: Vec3::new(1.0, 0.5, 0.0),
+    //     rotation: Quat::from_axis_angle(
+    //         Vec3::new(1.0, 0.0, 0.0).normalize(),
+    //         deg_to_rad(45.0) as f32,
+    //     ),
+    //     scale: Vec3::new(10.0, 10.0, 10.0),
     // };
-    // objects.push(Arc::new(Mutex::new(Box::new(TestObj::new(
-    //     transform, model,
-    // )))));
+    //
+    // let context = engine.renderer.renderer.context.as_ref().unwrap().deref();
+    //
+    // let model = TestModel {
+    //     context: context.clone(),
+    // };
+    //
+    // entities.add(TestObj::new(transform, model).into_container());
 
     let mut windower = Windower::new(
         engine,

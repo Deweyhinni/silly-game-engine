@@ -13,7 +13,11 @@ use winit::{
 };
 
 use crate::{
-    engine::{Engine, messages::Message, object::Object},
+    engine::{
+        Engine,
+        entity::{Entity, EntityRegistry},
+        messages::Message,
+    },
     utils::{SharedBox, WeakShared},
 };
 
@@ -28,7 +32,7 @@ pub trait Renderer {
         event: &WindowEvent,
     ) -> anyhow::Result<()>;
     fn handle_close(&mut self, window: Arc<Window>, event: &WindowEvent) -> anyhow::Result<()>;
-    fn set_objects(&mut self, objects: &[SharedBox<dyn Object>]);
+    fn set_objects(&mut self, objects: EntityRegistry);
 
     fn get_messages(&self) -> &VecDeque<Message>;
     fn get_messages_mut(&mut self) -> &mut VecDeque<Message>;
@@ -50,25 +54,22 @@ pub enum RendererType {
 
 /// basic renderer abstraction
 pub struct EngineRenderer {
-    pub objects: Vec<SharedBox<dyn Object>>,
+    pub objects: EntityRegistry,
     pub renderer: ThreedRenderer,
 }
 
 impl EngineRenderer {
     /// create new EngineRenderer
-    pub fn new(renderer_type: RendererType, objects: &[SharedBox<dyn Object>]) -> Self {
+    pub fn new(renderer_type: RendererType, objects: EntityRegistry) -> Self {
         let renderer = match renderer_type {
-            RendererType::ThreeD => ThreedRenderer::new(objects),
+            RendererType::ThreeD => ThreedRenderer::new(objects.clone()),
         };
-        Self {
-            objects: objects.to_vec(),
-            renderer,
-        }
+        Self { objects, renderer }
     }
 
     /// sets objects to render
-    pub fn set_objects(&mut self, objects: &[SharedBox<dyn Object>]) {
-        self.objects = objects.to_vec();
+    pub fn set_objects(&mut self, objects: EntityRegistry) {
+        self.objects = objects.clone();
         self.renderer.set_objects(objects);
     }
 

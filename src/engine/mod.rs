@@ -3,9 +3,9 @@ use std::{
     sync::{Arc, Mutex, RwLock},
 };
 
+use entity::{Entity, EntityMap, EntityRegistry};
 use event::{EventHandler, EventHandlerCommand};
 use messages::{Message, MessageCommand};
-use object::Object;
 use winit::{
     event_loop::EventLoop,
     platform::run_on_demand::EventLoopExtRunOnDemand,
@@ -18,9 +18,9 @@ use crate::{
 };
 
 pub mod component;
+pub mod entity;
 pub mod event;
 pub mod messages;
-pub mod object;
 
 #[derive(Debug, Clone)]
 pub enum EngineCommand {
@@ -32,16 +32,16 @@ pub struct Engine {
     pub event_handler: EventHandler,
 
     windows: Arc<RwLock<HashMap<WindowId, Arc<Window>>>>,
-    pub objects: Vec<SharedBox<dyn Object>>,
+    pub objects: EntityRegistry,
 }
 
 impl Engine {
-    pub fn new(renderer_type: RendererType, objects: &[SharedBox<dyn Object>]) -> Self {
+    pub fn new(renderer_type: RendererType, objects: EntityRegistry) -> Self {
         Self {
-            renderer: EngineRenderer::new(renderer_type, objects),
+            renderer: EngineRenderer::new(renderer_type, objects.clone()),
             event_handler: EventHandler::new(),
             windows: Arc::new(RwLock::new(HashMap::new())),
-            objects: objects.to_vec(),
+            objects,
         }
     }
 
@@ -96,16 +96,13 @@ impl Engine {
     fn handle_message(&mut self, msg: Message) -> anyhow::Result<()> {
         match msg.context.command {
             MessageCommand::RendererCommand(rc) => match rc {
-                RendererCommand::Render(wid) => {
-                    log::info!("render message");
-                    self.renderer.render(Arc::clone(
-                        self.windows
-                            .read()
-                            .unwrap()
-                            .get(&wid)
-                            .ok_or(anyhow::anyhow!("window not found"))?,
-                    ))
-                }
+                RendererCommand::Render(wid) => self.renderer.render(Arc::clone(
+                    self.windows
+                        .read()
+                        .unwrap()
+                        .get(&wid)
+                        .ok_or(anyhow::anyhow!("window not found"))?,
+                )),
                 RendererCommand::HandleResize((wid, wevent)) => {
                     self.renderer.renderer.handle_resize(
                         Arc::clone(
@@ -148,7 +145,6 @@ impl Engine {
             },
             MessageCommand::EngineCommand(ec) => match ec {
                 EngineCommand::RedrawComplete(wid) => {
-                    log::info!("redraw complete message");
                     self.handle_messages();
                     Ok(self
                         .windows
@@ -163,7 +159,7 @@ impl Engine {
         }
     }
 
-    pub fn set_objects(&mut self, objects: &[SharedBox<dyn Object>]) {
-        self.objects = objects.to_vec();
+    pub fn set_objects(&mut self, objects: EntityRegistry) {
+        self.objects = objects;
     }
 }
