@@ -146,7 +146,6 @@ impl ThreedRenderer {
 impl Renderer for ThreedRenderer {
     /// prepares models for rendering and starts render loop
     fn render(&mut self, window: Arc<Window>) -> anyhow::Result<()> {
-        log::info!("rendering");
         let mut frame_input_generator = FrameInputGenerator::from_winit_window(window.as_ref());
         // self.init(window);
         let context = self

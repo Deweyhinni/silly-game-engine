@@ -27,6 +27,8 @@ use three_d::{ColorMaterial, Context, CpuMaterial, CpuMesh, Gm, Mesh, PhysicalMa
 use uuid::Uuid;
 use winit::{
     dpi::{LogicalPosition, LogicalSize},
+    event::WindowEvent,
+    keyboard::Key,
     window::WindowAttributes,
 };
 
@@ -72,15 +74,12 @@ impl Model for TestModel {
 #[derive(Debug, Clone)]
 pub struct TestObj {
     transform: Transform3D,
-    model: SharedBox<TestModel>,
+    model: Option<SharedBox<TestModel>>,
 }
 
 impl TestObj {
-    pub fn new(transform: Transform3D, model: TestModel) -> Self {
-        Self {
-            transform,
-            model: new_shared_box(model),
-        }
+    pub fn new(transform: Transform3D, model: Option<SharedBox<TestModel>>) -> Self {
+        Self { transform, model }
     }
 }
 
@@ -96,8 +95,9 @@ impl Entity for TestObj {
     }
 
     fn model(&self) -> Option<SharedBox<dyn game_engine_lib::engine::entity::Model>> {
-        let model_clone = Box::into_inner(self.model.lock().expect("poisoned mutex").clone());
-        Some(Arc::new(Mutex::new(Box::new(model_clone))))
+        // let model_clone = Box::into_inner(self.model.lock().expect("poisoned mutex").clone());
+        // Some(Arc::new(Mutex::new(Box::new(model_clone))))
+        None
     }
 
     fn transform(&self) -> Transform3D {
@@ -113,6 +113,19 @@ impl Entity for TestObj {
 
     fn physics_update(&mut self, delta: f64) {
         ()
+    }
+
+    fn input(&mut self, event: &winit::event::WindowEvent) {
+        match event {
+            WindowEvent::KeyboardInput {
+                device_id,
+                event,
+                is_synthetic,
+            } => {
+                log::debug!("{:?}", event.logical_key)
+            }
+            e => log::debug!("event: {:?}", e),
+        }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -134,14 +147,14 @@ fn main() {
     let mut entities = EntityRegistry::new();
     let mut engine = Engine::new(RendererType::ThreeD, entities.clone());
 
-    // let transform = Transform3D {
-    //     position: Vec3::new(1.0, 0.5, 0.0),
-    //     rotation: Quat::from_axis_angle(
-    //         Vec3::new(1.0, 0.0, 0.0).normalize(),
-    //         deg_to_rad(45.0) as f32,
-    //     ),
-    //     scale: Vec3::new(10.0, 10.0, 10.0),
-    // };
+    let transform = Transform3D {
+        position: Vec3::new(1.0, 0.5, 0.0),
+        rotation: Quat::from_axis_angle(
+            Vec3::new(1.0, 0.0, 0.0).normalize(),
+            deg_to_rad(45.0) as f32,
+        ),
+        scale: Vec3::new(10.0, 10.0, 10.0),
+    };
     //
     // let context = engine.renderer.renderer.context.as_ref().unwrap().deref();
     //
@@ -149,7 +162,8 @@ fn main() {
     //     context: context.clone(),
     // };
     //
-    // entities.add(TestObj::new(transform, model).into_container());
+
+    entities.add(TestObj::new(transform, None).into_container());
 
     let mut windower = Windower::new(
         engine,

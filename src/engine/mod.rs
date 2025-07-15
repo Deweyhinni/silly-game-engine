@@ -39,7 +39,7 @@ impl Engine {
     pub fn new(renderer_type: RendererType, objects: EntityRegistry) -> Self {
         Self {
             renderer: EngineRenderer::new(renderer_type, objects.clone()),
-            event_handler: EventHandler::new(),
+            event_handler: EventHandler::new(objects.clone()),
             windows: Arc::new(RwLock::new(HashMap::new())),
             objects,
         }

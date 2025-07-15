@@ -92,7 +92,7 @@ impl ApplicationHandler for Windower {
         window_id: WindowId,
         event: winit::event::WindowEvent,
     ) {
-        log::info!("window event: {:?}", event);
+        // log::info!("window event: {:?}", event);
 
         let windows = self.windows.read().unwrap();
 
@@ -173,10 +173,12 @@ impl ApplicationHandler for Windower {
                     to: Systems::EventHandler,
                     context: MessageContext {
                         command: MessageCommand::EventHandlerCommand(
-                            EventHandlerCommand::WindowEvent((window_id, e)),
+                            EventHandlerCommand::WindowEvent((window_id, e.clone())),
                         ),
                     },
                 };
+
+                self.engine.event_handler.send_event(window_id, e);
             }
         }
     }

@@ -7,6 +7,7 @@ use std::{
 
 use three_d::{ColorMaterial, Gm, Mesh};
 use uuid::Uuid;
+use winit::event::WindowEvent;
 
 use crate::utils::{Shared, SharedBox};
 
@@ -90,6 +91,7 @@ pub trait Entity: Debug + Display + Send + Sync {
 
     fn update(&mut self, delta: f64);
     fn physics_update(&mut self, delta: f64);
+    fn input(&mut self, event: &WindowEvent);
 
     fn as_any(&self) -> &dyn std::any::Any;
     fn clone_box(&self) -> Box<dyn Entity>;

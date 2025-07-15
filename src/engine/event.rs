@@ -2,7 +2,7 @@ use std::{collections::VecDeque, sync::Weak};
 
 use winit::{event::WindowEvent, window::WindowId};
 
-use super::Engine;
+use super::{Engine, entity::EntityRegistry};
 
 use crate::engine::messages::Message;
 
@@ -13,17 +13,23 @@ pub enum EventHandlerCommand {
 
 pub struct EventHandler {
     pub messages: VecDeque<Message>,
+    entities: EntityRegistry,
 }
 
 impl EventHandler {
-    pub fn new() -> Self {
+    pub fn new(entities: EntityRegistry) -> Self {
         Self {
             messages: VecDeque::new(),
+            entities,
         }
     }
 
     pub fn send_event(&self, window_id: WindowId, event: WindowEvent) -> () {
-        todo!("idrk event stuff")
+        // log::debug!("input event: {:?}", event);
+        self.entities
+            .clone()
+            .into_iter()
+            .for_each(|e| e.lock().unwrap().input(&event));
     }
 
     pub fn get_messages(&self) -> &VecDeque<Message> {
