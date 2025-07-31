@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use anyhow::anyhow;
@@ -9,15 +9,17 @@ use log::info;
 use three_d::{
     Axes, Camera, ClearState, ColorMaterial, Context, CpuMaterial, CpuMesh, CpuTexture,
     DirectionalLight, FlyControl, FrameInput, FrameInputGenerator, FrameOutput, Gm, Mesh, Srgba,
-    SurfaceSettings, WindowSettings, WindowedContext, degrees, geometry,
+    SurfaceSettings, TextureData, WindowSettings, WindowedContext, degrees, geometry,
 };
 
 use three_d::Object;
+use uuid::Uuid;
 use winit::{
     event::WindowEvent,
     window::{Window, WindowId},
 };
 
+use crate::engine::component::Transform3D;
 use crate::engine::entity::{EntityContainer, EntityRegistry};
 use crate::engine::messages::Message;
 use crate::{
@@ -37,6 +39,7 @@ pub struct ThreedRenderer {
     lights: Vec<DirectionalLight>,
 
     objects: EntityRegistry,
+    object_gm_cache: HashMap<Uuid, Vec<Gm<Mesh, ColorMaterial>>>,
     messages: VecDeque<Message>,
 }
 
@@ -63,6 +66,7 @@ impl ThreedRenderer {
             lights,
 
             objects,
+            object_gm_cache: HashMap::new(),
             messages: VecDeque::new(),
         }
     }
@@ -97,27 +101,37 @@ impl ThreedRenderer {
             o.lock().expect("poisoned mutex").update(delta);
         });
 
-        let obj_gms: Vec<Vec<_>> = self
+        self.objects.clone().into_iter().for_each(|o| {
+            let transform = o.lock().expect("poisoned mutex").transform();
+
+            if !self.object_gm_cache.contains_key(&o.id()) {
+                let mut gms = match object_get_gm_list(o.clone(), &self.context.as_ref().unwrap()) {
+                    Ok(g) => g,
+                    Err(e) => {
+                        log::info!("skipped object render because unable to get gm list: {e}");
+                        return;
+                    }
+                };
+                gms.iter_mut()
+                    .for_each(|gm| gm_update_transform(gm, &transform));
+                self.object_gm_cache.insert(o.id(), gms);
+            };
+
+            if let Some(gms) = self.object_gm_cache.get_mut(&o.id()) {
+                gms.iter_mut()
+                    .for_each(|gm| gm_update_transform(gm, &transform));
+            };
+        });
+
+        let objs_gms: Vec<&Vec<_>> = self
             .objects
             .clone()
             .into_iter()
             .filter_map(|o| {
-                let transform = o.lock().expect("poisoned mutex").transform();
-                let position = transform.position;
-                let rotation = transform.rotation;
-                let scale = transform.scale;
-                let mut gms = match object_get_gm_list(o, &self.context.as_ref().unwrap()) {
-                    Ok(gms) => gms,
-                    Err(e) => {
-                        info!("skipped model because unable to get Gm {e}");
-                        return None;
-                    }
+                let gms = match self.object_gm_cache.get(&o.id()) {
+                    Some(g) => g,
+                    None => return None,
                 };
-                let transform_mat = Mat4::from_translation(position)
-                    * Mat4::from_quat(rotation)
-                    * Mat4::from_scale(scale);
-                gms.iter_mut()
-                    .for_each(|gm| gm.set_transformation(transform_mat.into_cgmath()));
 
                 Some(gms)
             })
@@ -127,7 +141,7 @@ impl ThreedRenderer {
             .screen()
             .clear(ClearState::color_and_depth(0.5, 0.8, 0.8, 1.0, 1.0))
             .write(|| {
-                obj_gms.iter().for_each(|gms| {
+                objs_gms.iter().for_each(|gms| {
                     gms.iter()
                         .for_each(|gm| gm.render(&self.camera, &[&self.lights[0]]))
                 });
@@ -154,6 +168,7 @@ impl Renderer for ThreedRenderer {
             .ok_or(anyhow::anyhow!("no render context"))?;
 
         context.make_current().unwrap();
+
         self.render_internal(&mut frame_input_generator.generate(context))?;
         window.request_redraw();
         Ok(())
@@ -223,6 +238,13 @@ impl Renderer for ThreedRenderer {
     }
 }
 
+fn gm_update_transform(gm: &mut Gm<Mesh, ColorMaterial>, transform: &Transform3D) {
+    let transform_mat = Mat4::from_translation(transform.position)
+        * Mat4::from_quat(transform.rotation)
+        * Mat4::from_scale(transform.scale);
+    gm.set_transformation(transform_mat.into_cgmath());
+}
+
 /// takes a reference to an object and gets a list of GM geometry and material instances
 fn object_get_gm_list(
     object: EntityContainer,
@@ -252,15 +274,19 @@ fn object_get_gm_list(
 
                             let cpu_texture = match prim.material_index {
                                 Some(index) => match model.materials.get(index) {
-                                    Some(mat) => Some(CpuTexture {
+                                    Some(mat) => {
+                                        let albedo_data = match mat.albedo.image_format {
+                                            crate::assets::asset_manager::ImageFormat::R8G8B8 => {
+                                                TextureData::RgbU8(mat.albedo.data.chunks(3).map(|c| [c[0], c[1], c[2]]).collect())
+                                            }
+                                            crate::assets::asset_manager::ImageFormat::R8G8B8A8 => {
+                                                TextureData::RgbaU8(mat.albedo.data.chunks(4).map(|c| [c[0], c[1], c[2], c[3]]).collect())
+
+                                            }
+                                        };
+                                        Some(CpuTexture {
                                         name: "albedo_texture".into(),
-                                        data: three_d::TextureData::RgbU8(
-                                            mat.albedo
-                                                .data
-                                                .chunks(3)
-                                                .map(|w| [w[0], w[1], w[2]])
-                                                .collect(),
-                                        ),
+                                        data: albedo_data,
                                         width: mat.albedo.width,
                                         height: mat.albedo.height,
                                         min_filter: three_d::Interpolation::Linear,
@@ -268,7 +294,7 @@ fn object_get_gm_list(
                                         mipmap: None,
                                         wrap_s: three_d::Wrapping::Repeat,
                                         wrap_t: three_d::Wrapping::Repeat,
-                                    }),
+                                    })},
                                     None => None,
                                 },
                                 None => None,

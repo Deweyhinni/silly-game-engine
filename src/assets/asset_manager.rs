@@ -163,7 +163,10 @@ impl AssetManager {
                 let (gltf, buffers, images) = gltf::import_slice(file.contents()).ok()?;
                 let model = AssetManager::gltf_to_model(gltf, buffers, images);
 
-                Some((Uuid::nil(), Arc::new(Asset::Model(model))))
+                let model_arc = Arc::new(Asset::Model(model));
+                self.asset_cache
+                    .insert(path.to_path_buf(), model_arc.clone());
+                Some((Uuid::nil(), model_arc))
             } else {
                 log::info!("file not found");
 
@@ -193,9 +196,14 @@ impl AssetManager {
                     .source()
                     .index();
                 let albedo_image = images.get(albedo_texture_index).unwrap();
+                let albedo_format = match albedo_image.format {
+                    gltf::image::Format::R8G8B8 => ImageFormat::R8G8B8,
+                    gltf::image::Format::R8G8B8A8 => ImageFormat::R8G8B8A8,
+                    _ => panic!("unsupported image format"),
+                };
                 let albedo = Texture {
                     texture_type: TextureType::Albedo,
-                    image_format: ImageFormat::R8G8B8,
+                    image_format: albedo_format,
                     width: albedo_image.width,
                     height: albedo_image.height,
                     data: albedo_image.pixels.clone(),

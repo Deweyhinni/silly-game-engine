@@ -38,11 +38,16 @@ use winit::{
 pub struct TestObj {
     transform: Transform3D,
     model: Option<Model>,
+    id: Uuid,
 }
 
 impl TestObj {
     pub fn new(transform: Transform3D, model: Option<Model>) -> Self {
-        Self { transform, model }
+        Self {
+            transform,
+            model,
+            id: Uuid::new_v4(),
+        }
     }
 }
 
@@ -54,7 +59,7 @@ impl Display for TestObj {
 
 impl Entity for TestObj {
     fn id(&self) -> uuid::Uuid {
-        Uuid::new_v4()
+        self.id
     }
 
     fn model(&self) -> &Option<Model> {
@@ -70,6 +75,8 @@ impl Entity for TestObj {
 
     fn update(&mut self, delta: f64) {
         self.transform.position.x += 1.0 * delta as f32;
+        self.transform.rotation =
+            self.transform.rotation * Quat::from_rotation_y(deg_to_rad(3.0) as f32);
     }
 
     fn physics_update(&mut self, delta: f64) {
@@ -111,16 +118,16 @@ fn main() {
     let mut asset_manager = AssetManager::new();
 
     let transform = Transform3D {
-        position: Vec3::new(1.0, 0.5, 0.0),
+        position: Vec3::new(0.0, 0.5, 0.0),
         rotation: Quat::from_axis_angle(
             Vec3::new(1.0, 0.0, 0.0).normalize(),
-            deg_to_rad(45.0) as f32,
+            deg_to_rad(0.0) as f32,
         ),
-        scale: Vec3::new(1000.0, 1000.0, 1000.0),
+        scale: Vec3::new(100.0, 100.0, 100.0),
     };
 
     let (uuid, maybe_model) = asset_manager
-        .get_asset_by_path(Path::new("Avocado.glb"))
+        .get_asset_by_path(Path::new("BarramundiFish.glb"))
         .expect("model not found");
     let model = match maybe_model.as_ref() {
         Asset::Model(m) => m,

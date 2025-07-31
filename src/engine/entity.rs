@@ -61,6 +61,10 @@ impl EntityRegistry {
     pub fn get(&self, id: &Uuid) -> Option<EntityContainer> {
         self.entities.read().as_ref().unwrap().get(id).cloned()
     }
+
+    pub fn len(&self) -> usize {
+        self.entities.read().as_ref().unwrap().len()
+    }
 }
 
 impl IntoIterator for EntityRegistry {
