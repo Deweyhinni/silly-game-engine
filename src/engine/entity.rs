@@ -9,7 +9,10 @@ use three_d::{ColorMaterial, Gm, Mesh};
 use uuid::Uuid;
 use winit::event::WindowEvent;
 
-use crate::utils::{Shared, SharedBox};
+use crate::{
+    assets::asset_manager::Model,
+    utils::{Shared, SharedBox},
+};
 
 use super::component::Transform3D;
 
@@ -75,17 +78,17 @@ impl IntoIterator for EntityRegistry {
 }
 
 /// model trait, made for three_d for now
-pub trait Model: Debug + Display + Send + Sync {
-    fn gm(&self) -> Gm<Mesh, ColorMaterial>;
-
-    fn as_any(&self) -> &dyn std::any::Any;
-    fn clone_box(&self) -> Box<dyn Model>;
-}
+// pub trait Model: Debug + Display + Send + Sync {
+//     fn model(&self) -> crate::assets::asset_manager::Model;
+//
+//     fn as_any(&self) -> &dyn std::any::Any;
+//     fn clone_box(&self) -> Box<dyn Model>;
+// }
 
 /// trait for creating game object structs
 pub trait Entity: Debug + Display + Send + Sync {
     fn id(&self) -> Uuid;
-    fn model(&self) -> Option<SharedBox<dyn Model>>;
+    fn model(&self) -> &Option<crate::assets::asset_manager::Model>;
     fn transform(&self) -> Transform3D;
     fn transform_mut(&mut self) -> &mut Transform3D;
 
@@ -101,12 +104,6 @@ pub trait Entity: Debug + Display + Send + Sync {
 
 impl Clone for Box<dyn Entity> {
     fn clone(&self) -> Box<dyn Entity> {
-        self.clone_box()
-    }
-}
-
-impl Clone for Box<dyn Model> {
-    fn clone(&self) -> Box<dyn Model> {
         self.clone_box()
     }
 }

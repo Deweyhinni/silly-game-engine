@@ -7,9 +7,9 @@ use cgmath::vec3;
 use glam::{Mat4, Vec3};
 use log::info;
 use three_d::{
-    Axes, Camera, ClearState, ColorMaterial, Context, DirectionalLight, FlyControl, FrameInput,
-    FrameInputGenerator, FrameOutput, Gm, Mesh, Srgba, SurfaceSettings, WindowSettings,
-    WindowedContext, degrees,
+    Axes, Camera, ClearState, ColorMaterial, Context, CpuMaterial, CpuMesh, CpuTexture,
+    DirectionalLight, FlyControl, FrameInput, FrameInputGenerator, FrameOutput, Gm, Mesh, Srgba,
+    SurfaceSettings, WindowSettings, WindowedContext, degrees, geometry,
 };
 
 use three_d::Object;
@@ -21,10 +21,8 @@ use winit::{
 use crate::engine::entity::{EntityContainer, EntityRegistry};
 use crate::engine::messages::Message;
 use crate::{
-    engine::{
-        Engine,
-        entity::{Entity, Model},
-    },
+    assets::asset_manager::Model,
+    engine::{Engine, entity::Entity},
     utils::{IntoCgmath, SharedBox, WeakShared},
 };
 
@@ -99,7 +97,7 @@ impl ThreedRenderer {
             o.lock().expect("poisoned mutex").update(delta);
         });
 
-        let obj_gms: Vec<_> = self
+        let obj_gms: Vec<Vec<_>> = self
             .objects
             .clone()
             .into_iter()
@@ -108,8 +106,8 @@ impl ThreedRenderer {
                 let position = transform.position;
                 let rotation = transform.rotation;
                 let scale = transform.scale;
-                let mut gm = match object_get_gm(o) {
-                    Ok(gm) => gm,
+                let mut gms = match object_get_gm_list(o, &self.context.as_ref().unwrap()) {
+                    Ok(gms) => gms,
                     Err(e) => {
                         info!("skipped model because unable to get Gm {e}");
                         return None;
@@ -118,9 +116,10 @@ impl ThreedRenderer {
                 let transform_mat = Mat4::from_translation(position)
                     * Mat4::from_quat(rotation)
                     * Mat4::from_scale(scale);
-                gm.set_transformation(transform_mat.into_cgmath());
+                gms.iter_mut()
+                    .for_each(|gm| gm.set_transformation(transform_mat.into_cgmath()));
 
-                Some(gm)
+                Some(gms)
             })
             .collect();
 
@@ -128,9 +127,10 @@ impl ThreedRenderer {
             .screen()
             .clear(ClearState::color_and_depth(0.5, 0.8, 0.8, 1.0, 1.0))
             .write(|| {
-                for o in obj_gms {
-                    o.render(&self.camera, &[&self.lights[0]]);
-                }
+                obj_gms.iter().for_each(|gms| {
+                    gms.iter()
+                        .for_each(|gm| gm.render(&self.camera, &[&self.lights[0]]))
+                });
 
                 axes.render(&self.camera, &[&self.lights[0]]);
                 Ok::<(), std::io::Error>(())
@@ -223,16 +223,98 @@ impl Renderer for ThreedRenderer {
     }
 }
 
-/// takes a reference to an object and gets a GM geometry and material instance
-fn object_get_gm(object: EntityContainer) -> anyhow::Result<Gm<Mesh, ColorMaterial>> {
+/// takes a reference to an object and gets a list of GM geometry and material instances
+fn object_get_gm_list(
+    object: EntityContainer,
+    context: &WindowedContext,
+) -> anyhow::Result<Vec<Gm<Mesh, ColorMaterial>>> {
     let obj = object.clone();
-
-    Ok(obj
+    let model = obj
         .lock()
-        .expect("poisoned mutex")
+        .expect("mutex lock failed")
         .model()
-        .ok_or(anyhow!("missing model"))?
-        .lock()
-        .expect("poisoned mutex")
-        .gm())
+        .clone()
+        .unwrap();
+
+    let node_list = model.get_nodes_flattened();
+    let gms = node_list
+        .iter()
+        .map(|node| {
+            node.meshes
+                .iter()
+                .map(|mesh| {
+                    mesh.primitives
+                        .iter()
+                        .map(|prim| {
+                            let geometry = mesh_prim_to_geometry(prim, context)
+                                .ok_or(anyhow::anyhow!("unable to create geometry from primitive"))
+                                .unwrap();
+
+                            let cpu_texture = match prim.material_index {
+                                Some(index) => match model.materials.get(index) {
+                                    Some(mat) => Some(CpuTexture {
+                                        name: "albedo_texture".into(),
+                                        data: three_d::TextureData::RgbU8(
+                                            mat.albedo
+                                                .data
+                                                .chunks(3)
+                                                .map(|w| [w[0], w[1], w[2]])
+                                                .collect(),
+                                        ),
+                                        width: mat.albedo.width,
+                                        height: mat.albedo.height,
+                                        min_filter: three_d::Interpolation::Linear,
+                                        mag_filter: three_d::Interpolation::Linear,
+                                        mipmap: None,
+                                        wrap_s: three_d::Wrapping::Repeat,
+                                        wrap_t: three_d::Wrapping::Repeat,
+                                    }),
+                                    None => None,
+                                },
+                                None => None,
+                            };
+
+                            let material = three_d::ColorMaterial::new(
+                                context,
+                                &CpuMaterial {
+                                    albedo: Srgba {
+                                        r: 255,
+                                        g: 255,
+                                        b: 255,
+                                        a: 255,
+                                    },
+                                    albedo_texture: cpu_texture,
+                                    ..Default::default()
+                                },
+                            );
+
+                            Gm::new(geometry, material)
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .flatten()
+                .collect::<Vec<_>>()
+        })
+        .flatten()
+        .collect::<Vec<_>>();
+
+    Ok(gms)
+}
+
+fn mesh_prim_to_geometry(
+    prim: &crate::assets::asset_manager::MeshPrimitive,
+    context: &WindowedContext,
+) -> Option<three_d::Mesh> {
+    let cpu_mesh = CpuMesh {
+        positions: three_d::Positions::F32(
+            prim.positions.iter().map(|p| p.into_cgmath()).collect(),
+        ),
+        indices: three_d::Indices::U32(prim.indices.clone()),
+        normals: Some(prim.normals.iter().map(|n| n.into_cgmath()).collect()),
+        uvs: Some(prim.tex_coords.iter().map(|tc| tc.into_cgmath()).collect()),
+        tangents: None,
+        colors: None,
+    };
+
+    Some(three_d::Mesh::new(context, &cpu_mesh))
 }

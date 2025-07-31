@@ -43,6 +43,14 @@ impl IntoCgmath for glam::Vec3 {
     }
 }
 
+impl IntoCgmath for glam::Vec2 {
+    type Output = cgmath::Vector2<f32>;
+
+    fn into_cgmath(self) -> Self::Output {
+        cgmath::Vector2::new(self.x, self.y)
+    }
+}
+
 impl IntoCgmath for glam::Mat4 {
     type Output = cgmath::Matrix4<f32>;
     fn into_cgmath(self) -> Self::Output {

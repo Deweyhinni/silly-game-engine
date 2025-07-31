@@ -4,6 +4,7 @@
 use std::{
     fmt::Display,
     ops::Deref,
+    path::Path,
     sync::{Arc, Mutex, RwLock},
     thread,
     time::Duration,
@@ -13,10 +14,11 @@ use glam::{Mat4, Quat, Vec3};
 
 use game_engine_lib::{
     self,
+    assets::asset_manager::{Asset, AssetManager, Model},
     engine::{
         Engine,
         component::Transform3D,
-        entity::{Entity, EntityContainer, EntityRegistry, Model},
+        entity::{Entity, EntityContainer, EntityRegistry},
         event::EventHandler,
     },
     rendering::{EngineRenderer, RendererType},
@@ -33,52 +35,13 @@ use winit::{
 };
 
 #[derive(Debug, Clone)]
-pub struct TestModel {
-    context: Context,
-}
-
-impl TestModel {
-    pub fn new(context: &Context) -> Self {
-        Self {
-            context: context.clone(),
-        }
-    }
-}
-
-impl Display for TestModel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl Model for TestModel {
-    fn gm(&self) -> three_d::Gm<three_d::Mesh, three_d::ColorMaterial> {
-        Gm::new(
-            Mesh::new(&self.context, &CpuMesh::cube()),
-            ColorMaterial {
-                color: Srgba::RED,
-                ..Default::default()
-            },
-        )
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn Model> {
-        Box::new(self.clone())
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct TestObj {
     transform: Transform3D,
-    model: Option<SharedBox<TestModel>>,
+    model: Option<Model>,
 }
 
 impl TestObj {
-    pub fn new(transform: Transform3D, model: Option<SharedBox<TestModel>>) -> Self {
+    pub fn new(transform: Transform3D, model: Option<Model>) -> Self {
         Self { transform, model }
     }
 }
@@ -94,10 +57,8 @@ impl Entity for TestObj {
         Uuid::new_v4()
     }
 
-    fn model(&self) -> Option<SharedBox<dyn game_engine_lib::engine::entity::Model>> {
-        // let model_clone = Box::into_inner(self.model.lock().expect("poisoned mutex").clone());
-        // Some(Arc::new(Mutex::new(Box::new(model_clone))))
-        None
+    fn model(&self) -> &Option<Model> {
+        &self.model
     }
 
     fn transform(&self) -> Transform3D {
@@ -147,23 +108,26 @@ fn main() {
     let mut entities = EntityRegistry::new();
     let mut engine = Engine::new(RendererType::ThreeD, entities.clone());
 
+    let mut asset_manager = AssetManager::new();
+
     let transform = Transform3D {
         position: Vec3::new(1.0, 0.5, 0.0),
         rotation: Quat::from_axis_angle(
             Vec3::new(1.0, 0.0, 0.0).normalize(),
             deg_to_rad(45.0) as f32,
         ),
-        scale: Vec3::new(10.0, 10.0, 10.0),
+        scale: Vec3::new(1000.0, 1000.0, 1000.0),
     };
-    //
-    // let context = engine.renderer.renderer.context.as_ref().unwrap().deref();
-    //
-    // let model = TestModel {
-    //     context: context.clone(),
-    // };
-    //
 
-    entities.add(TestObj::new(transform, None).into_container());
+    let (uuid, maybe_model) = asset_manager
+        .get_asset_by_path(Path::new("Avocado.glb"))
+        .expect("model not found");
+    let model = match maybe_model.as_ref() {
+        Asset::Model(m) => m,
+        _ => panic!("model isnt model"),
+    };
+
+    entities.add(TestObj::new(transform, Some(model.clone())).into_container());
 
     let mut windower = Windower::new(
         engine,
