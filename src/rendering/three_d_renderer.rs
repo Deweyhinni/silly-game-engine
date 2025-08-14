@@ -9,7 +9,7 @@ use log::info;
 use three_d::{
     Axes, Camera, ClearState, ColorMaterial, Context, CpuMaterial, CpuMesh, CpuTexture,
     DirectionalLight, FlyControl, FrameInput, FrameInputGenerator, FrameOutput, Gm, Mesh, Srgba,
-    SurfaceSettings, TextureData, WindowSettings, WindowedContext, degrees, geometry,
+    SurfaceSettings, TextureData, WindowSettings, WindowedContext, degrees, geometry, radians,
 };
 
 use three_d::Object;
@@ -20,7 +20,7 @@ use winit::{
 };
 
 use crate::engine::component::Transform3D;
-use crate::engine::entity::{EntityContainer, EntityRegistry};
+use crate::engine::entity::{DefaultCamera, EntityContainer, EntityRegistry};
 use crate::engine::messages::Message;
 use crate::{
     assets::asset_manager::Model,
@@ -34,7 +34,7 @@ use super::Renderer;
 pub struct ThreedRenderer {
     // window_id: WindowId,
     pub context: Option<WindowedContext>,
-    camera: Camera,
+    camera: Option<Camera>,
     control: FlyControl,
     lights: Vec<DirectionalLight>,
 
@@ -46,22 +46,13 @@ pub struct ThreedRenderer {
 impl ThreedRenderer {
     /// creates new three_d renderer
     pub fn new(objects: EntityRegistry) -> Self {
-        let mut camera = Camera::new_perspective(
-            three_d::Viewport::new_at_origo(1, 1),
-            vec3(60.0, 50.0, 60.0),
-            vec3(0.0, 0.0, 0.0),
-            Vec3::new(0.0, 1.0, 0.0).into_cgmath(),
-            degrees(45.0),
-            0.1,
-            1000.0,
-        );
         let mut control = FlyControl::new(10.);
 
         let lights = Vec::new();
 
         Self {
             context: None,
-            camera,
+            camera: None,
             control,
             lights,
 
@@ -71,7 +62,35 @@ impl ThreedRenderer {
         }
     }
 
-    pub fn init(&mut self, window: &Window) -> anyhow::Result<()> {
+    pub fn init(&mut self, window: &Window, camera_id: &Uuid) -> anyhow::Result<()> {
+        let camera_container = self
+            .objects
+            .get(camera_id)
+            .ok_or(anyhow::anyhow!("camera not found from provided id"))?;
+
+        let camera_lock = camera_container.lock().expect("mutex lock failed");
+
+        let camera_entity = camera_lock
+            .as_any()
+            .downcast_ref::<DefaultCamera>()
+            .ok_or(anyhow::anyhow!("provided entity is not a camera"))?;
+
+        let mut camera = {
+            let pos = camera_entity.transform.position;
+            let rotation = camera_entity.transform.rotation;
+            let target = Vec3::from(pos + rotation * camera_entity.forward);
+
+            Camera::new_perspective(
+                three_d::Viewport::new_at_origo(1, 1),
+                pos.into_cgmath(),
+                target.into_cgmath(),
+                camera_entity.up.into_cgmath(),
+                radians(camera_entity.fov),
+                camera_entity.near,
+                camera_entity.far,
+            )
+        };
+
         let context =
             WindowedContext::from_winit_window(window, SurfaceSettings::default()).unwrap();
 
@@ -84,6 +103,7 @@ impl ThreedRenderer {
 
         self.context = Some(context);
         self.lights = Vec::from(lights);
+        self.camera = Some(camera);
 
         Ok(())
     }
@@ -91,11 +111,15 @@ impl ThreedRenderer {
     fn render_internal(&mut self, frame_input: &mut FrameInput) -> anyhow::Result<()> {
         let context = self.context.as_ref().ok_or(anyhow::anyhow!("no context"))?;
         let axes = Axes::new(context, 0.5, 10.0);
-        self.camera.set_viewport(frame_input.viewport);
-        self.control
-            .handle_events(&mut self.camera, &mut frame_input.events);
+        self.camera
+            .as_mut()
+            .ok_or(anyhow::anyhow!("no camera"))?
+            .set_viewport(frame_input.viewport);
 
-        let delta = frame_input.elapsed_time / 1000.0;
+        // self.control
+        //     .handle_events(self.camera.as_mut().unwrap(), &mut frame_input.events);
+
+        let delta = frame_input.elapsed_time;
 
         self.objects.clone().into_iter().for_each(|o| {
             o.lock().expect("poisoned mutex").update(delta);
@@ -142,11 +166,12 @@ impl ThreedRenderer {
             .clear(ClearState::color_and_depth(0.5, 0.8, 0.8, 1.0, 1.0))
             .write(|| {
                 objs_gms.iter().for_each(|gms| {
-                    gms.iter()
-                        .for_each(|gm| gm.render(&self.camera, &[&self.lights[0]]))
+                    gms.iter().for_each(|gm| {
+                        gm.render(&self.camera.as_ref().unwrap(), &[&self.lights[0]])
+                    })
                 });
 
-                axes.render(&self.camera, &[&self.lights[0]]);
+                axes.render(&self.camera.as_ref().unwrap(), &[&self.lights[0]]);
                 Ok::<(), std::io::Error>(())
             })
             .unwrap();
@@ -256,7 +281,7 @@ fn object_get_gm_list(
         .expect("mutex lock failed")
         .model()
         .clone()
-        .unwrap();
+        .ok_or(anyhow::anyhow!("no model in entity"))?;
 
     let node_list = model.get_nodes_flattened();
     let gms = node_list

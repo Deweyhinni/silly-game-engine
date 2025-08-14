@@ -6,6 +6,7 @@ use std::{
 use entity::{Entity, EntityMap, EntityRegistry};
 use event::{EventHandler, EventHandlerCommand};
 use messages::{Message, MessageCommand};
+use uuid::Uuid;
 use winit::{
     event_loop::EventLoop,
     platform::run_on_demand::EventLoopExtRunOnDemand,
@@ -32,15 +33,21 @@ pub struct Engine {
     pub event_handler: EventHandler,
 
     windows: Arc<RwLock<HashMap<WindowId, Arc<Window>>>>,
+    pub default_camera_id: Uuid,
     pub objects: EntityRegistry,
 }
 
 impl Engine {
-    pub fn new(renderer_type: RendererType, objects: EntityRegistry) -> Self {
+    pub fn new(
+        renderer_type: RendererType,
+        objects: EntityRegistry,
+        default_camera_id: Uuid,
+    ) -> Self {
         Self {
             renderer: EngineRenderer::new(renderer_type, objects.clone()),
             event_handler: EventHandler::new(objects.clone()),
             windows: Arc::new(RwLock::new(HashMap::new())),
+            default_camera_id,
             objects,
         }
     }

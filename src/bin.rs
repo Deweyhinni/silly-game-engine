@@ -2,6 +2,7 @@
 #![feature(box_into_inner)]
 
 use std::{
+    any::TypeId,
     fmt::Display,
     ops::Deref,
     path::Path,
@@ -18,7 +19,7 @@ use game_engine_lib::{
     engine::{
         Engine,
         component::Transform3D,
-        entity::{Entity, EntityContainer, EntityRegistry},
+        entity::{DefaultCamera, Entity, EntityContainer, EntityRegistry},
         event::EventHandler,
     },
     rendering::{EngineRenderer, RendererType},
@@ -74,9 +75,9 @@ impl Entity for TestObj {
     }
 
     fn update(&mut self, delta: f64) {
-        self.transform.position.x += 1.0 * delta as f32;
+        // self.transform.position.x += 1.0 * delta as f32;
         self.transform.rotation =
-            self.transform.rotation * Quat::from_rotation_y(deg_to_rad(3.0) as f32);
+            self.transform.rotation * Quat::from_rotation_y(deg_to_rad(200.0 * delta) as f32);
     }
 
     fn physics_update(&mut self, delta: f64) {
@@ -99,6 +100,9 @@ impl Entity for TestObj {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
+    fn entity_type(&self) -> std::any::TypeId {
+        TypeId::of::<TestObj>()
+    }
 
     fn clone_box(&self) -> Box<dyn Entity> {
         Box::new(self.clone())
@@ -113,7 +117,6 @@ fn main() {
     env_logger::init();
     log::info!("logger init");
     let mut entities = EntityRegistry::new();
-    let mut engine = Engine::new(RendererType::ThreeD, entities.clone());
 
     let mut asset_manager = AssetManager::new();
 
@@ -123,18 +126,38 @@ fn main() {
             Vec3::new(1.0, 0.0, 0.0).normalize(),
             deg_to_rad(0.0) as f32,
         ),
-        scale: Vec3::new(100.0, 100.0, 100.0),
+        scale: Vec3::new(10.0, 10.0, 10.0),
     };
 
     let (uuid, maybe_model) = asset_manager
-        .get_asset_by_path(Path::new("BarramundiFish.glb"))
+        .get_asset_by_path(Path::new("DamagedHelmet.glb"))
         .expect("model not found");
     let model = match maybe_model.as_ref() {
         Asset::Model(m) => m,
         _ => panic!("model isnt model"),
     };
 
+    let camera = DefaultCamera::new(
+        Transform3D {
+            position: Vec3::new(0.0, 100.0, 0.0),
+            rotation: Quat::from_euler(glam::EulerRot::XYZ, 180.0, 0.0, 0.0),
+            scale: Vec3::new(1.0, 1.0, 1.0),
+        },
+        1920.0,
+        1080.0,
+        Vec3::new(0.0, 1.0, 0.0),
+        Vec3::new(0.0, 0.0, -1.0),
+        deg_to_rad(90.0) as f32,
+        0.1,
+        500.0,
+    );
+
+    let camera_id = camera.id();
+
     entities.add(TestObj::new(transform, Some(model.clone())).into_container());
+    entities.add(camera.into_container());
+
+    let mut engine = Engine::new(RendererType::ThreeD, entities.clone(), camera_id);
 
     let mut windower = Windower::new(
         engine,

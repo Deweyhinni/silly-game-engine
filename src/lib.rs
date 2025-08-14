@@ -1,4 +1,5 @@
 #![feature(box_into_inner)]
+#![feature(stmt_expr_attributes)]
 pub mod assets;
 pub mod engine;
 pub mod rendering;

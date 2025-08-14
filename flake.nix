@@ -30,7 +30,9 @@
             pkgs.rust-bin.beta.latest.default
             pkgs.libxkbcommon
             pkgs.libGL
+            pkgs.mesa
             pkgs.wayland
+            pkgs.wayland-protocols
 	    pkgs.openssl
           ];
 

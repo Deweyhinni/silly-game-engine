@@ -81,7 +81,11 @@ impl ApplicationHandler for Windower {
         let window = windows
             .get(&self.parent_window_id.expect("no window id"))
             .expect("no window");
-        self.engine.renderer.renderer.init(window).unwrap();
+        self.engine
+            .renderer
+            .renderer
+            .init(window, &self.engine.default_camera_id)
+            .unwrap();
         window.request_redraw();
         log::info!("resumed");
     }

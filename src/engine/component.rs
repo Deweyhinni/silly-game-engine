@@ -1,6 +1,6 @@
 use std::{any::Any, fmt::Debug};
 
-use glam::{Quat, Vec3};
+use glam::{Mat4, Quat, Vec3};
 
 /// trait for creating components
 pub trait Component: Debug + Send + Sync {
@@ -23,6 +23,18 @@ impl Transform3D {
             rotation,
             scale,
         }
+    }
+    pub fn rotation_matrix(&self) -> Mat4 {
+        Mat4::from_quat(self.rotation)
+    }
+    pub fn position_matrix(&self) -> Mat4 {
+        Mat4::from_translation(self.position)
+    }
+    pub fn scale_matrix(&self) -> Mat4 {
+        Mat4::from_scale(self.scale)
+    }
+    pub fn transform_matrix(&self) -> Mat4 {
+        self.transform_matrix() * self.rotation_matrix() * self.scale_matrix()
     }
 }
 
