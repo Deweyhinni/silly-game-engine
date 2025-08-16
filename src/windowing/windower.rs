@@ -22,6 +22,8 @@ use crate::{
     utils::WeakShared,
 };
 
+use tracy_client::*;
+
 #[derive(Debug, Clone)]
 pub enum WindowerCommand {}
 
@@ -139,6 +141,7 @@ impl ApplicationHandler for Windower {
                     },
                 };
 
+                let _span = tracy_client::span!("Frame");
                 match self
                     .engine
                     .renderer

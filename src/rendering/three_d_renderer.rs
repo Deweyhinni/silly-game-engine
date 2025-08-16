@@ -35,6 +35,7 @@ pub struct ThreedRenderer {
     // window_id: WindowId,
     pub context: Option<WindowedContext>,
     camera: Option<Camera>,
+    camera_id: Option<Uuid>,
     control: FlyControl,
     lights: Vec<DirectionalLight>,
 
@@ -53,6 +54,7 @@ impl ThreedRenderer {
         Self {
             context: None,
             camera: None,
+            camera_id: None,
             control,
             lights,
 
@@ -104,6 +106,7 @@ impl ThreedRenderer {
         self.context = Some(context);
         self.lights = Vec::from(lights);
         self.camera = Some(camera);
+        self.camera_id = Some(*camera_id);
 
         Ok(())
     }
@@ -111,6 +114,35 @@ impl ThreedRenderer {
     fn render_internal(&mut self, frame_input: &mut FrameInput) -> anyhow::Result<()> {
         let context = self.context.as_ref().ok_or(anyhow::anyhow!("no context"))?;
         let axes = Axes::new(context, 0.5, 10.0);
+
+        let camera_container = self
+            .objects
+            .get(
+                &self
+                    .camera_id
+                    .ok_or(anyhow::anyhow!("no camera id"))
+                    .unwrap(),
+            )
+            .ok_or(anyhow::anyhow!("no camera entity"))
+            .unwrap();
+        let camera_transform = camera_container
+            .lock()
+            .expect("mutex lock failed")
+            .transform();
+
+        let pos = camera_transform.position;
+        let rotation = camera_transform.rotation;
+        let target = Vec3::from(pos + rotation * Vec3::new(0.0, 0.0, -1.0));
+
+        self.camera
+            .as_mut()
+            .ok_or(anyhow::anyhow!("no camera"))?
+            .set_view(
+                pos.into_cgmath(),
+                target.into_cgmath(),
+                Vec3::new(0.0, 1.0, 0.0).into_cgmath(),
+            );
+
         self.camera
             .as_mut()
             .ok_or(anyhow::anyhow!("no camera"))?

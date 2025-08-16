@@ -30,8 +30,8 @@ use three_d::{ColorMaterial, Context, CpuMaterial, CpuMesh, Gm, Mesh, PhysicalMa
 use uuid::Uuid;
 use winit::{
     dpi::{LogicalPosition, LogicalSize},
-    event::WindowEvent,
-    keyboard::Key,
+    event::{ElementState, KeyEvent, WindowEvent},
+    keyboard::{Key, KeyCode, PhysicalKey},
     window::WindowAttributes,
 };
 
@@ -91,6 +91,28 @@ impl Entity for TestObj {
                 event,
                 is_synthetic,
             } => {
+                match event {
+                    KeyEvent {
+                        physical_key: PhysicalKey::Code(keycode),
+                        state: ElementState::Pressed,
+                        ..
+                    } => match keycode {
+                        KeyCode::KeyW => {
+                            self.transform.position.z += 1.0;
+                        }
+                        KeyCode::KeyS => {
+                            self.transform.position.z -= 1.0;
+                        }
+                        KeyCode::KeyA => {
+                            self.transform.position.x += 1.0;
+                        }
+                        KeyCode::KeyD => {
+                            self.transform.position.x -= 1.0;
+                        }
+                        _ => (),
+                    },
+                    _ => (),
+                }
                 log::debug!("{:?}", event.logical_key)
             }
             e => log::debug!("event: {:?}", e),
@@ -116,6 +138,8 @@ impl Entity for TestObj {
 fn main() {
     env_logger::init();
     log::info!("logger init");
+    tracy_client::Client::start();
+
     let mut entities = EntityRegistry::new();
 
     let mut asset_manager = AssetManager::new();

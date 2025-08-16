@@ -28,6 +28,8 @@
             pkgs.eza
             pkgs.fd
             pkgs.rust-bin.beta.latest.default
+            pkgs.cargo-flamegraph
+
             pkgs.libxkbcommon
             pkgs.libGL
             pkgs.mesa
