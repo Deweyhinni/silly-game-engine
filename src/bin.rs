@@ -35,6 +35,8 @@ use winit::{
     window::WindowAttributes,
 };
 
+use silly_game_engine_macros;
+
 #[derive(Debug, Clone)]
 pub struct TestObj {
     transform: Transform3D,
@@ -120,6 +122,9 @@ impl Entity for TestObj {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
     fn entity_type(&self) -> std::any::TypeId {

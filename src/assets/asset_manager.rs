@@ -242,42 +242,16 @@ impl AssetManager {
     ) -> ModelNode {
         let transform = Mat4::from_cols_array_2d(&node.transform().matrix());
 
-        let meshes = gltf
-            .meshes()
-            .map(|mesh_data| {
-                let primitives = mesh_data
-                    .primitives()
-                    .map(|prim| {
-                        let reader = prim.reader(|buffer| Some(&buffers[buffer.index()]));
-                        let tex_coords = match reader.read_tex_coords(0) {
-                            Some(tcs) => tcs.into_f32().map(|tc| Vec2::from_array(tc)).collect(),
-                            None => Vec::new(),
-                        };
-                        let mesh_primitive = MeshPrimitive {
-                            positions: reader
-                                .read_positions()
-                                .unwrap()
-                                .map(|p| Vec3::from_array(p))
-                                .collect(),
-                            normals: reader
-                                .read_normals()
-                                .unwrap()
-                                .map(|n| Vec3::from_array(n))
-                                .collect(),
-                            tex_coords,
-                            indices: reader.read_indices().unwrap().into_u32().collect(),
-                            material_index: prim.material().index(),
-                        };
-
-                        mesh_primitive
-                    })
-                    .collect();
-
-                let mesh = Mesh { primitives };
-
-                mesh
-            })
-            .collect();
+        let meshes = match node.mesh() {
+            Some(m) => match AssetManager::gltf_mesh_to_mesh(&m, buffers) {
+                Ok(mesh) => vec![mesh],
+                Err(e) => {
+                    log::info!("mesh loading error: {}", e);
+                    Vec::new()
+                }
+            },
+            None => Vec::new(),
+        };
 
         let nodes = node
             .children()
@@ -289,6 +263,43 @@ impl AssetManager {
             meshes,
             nodes,
         }
+    }
+
+    pub fn gltf_mesh_to_mesh(
+        gltf_mesh: &gltf::Mesh,
+        buffers: &Vec<gltf::buffer::Data>,
+    ) -> anyhow::Result<Mesh> {
+        let primitives = gltf_mesh
+            .primitives()
+            .map(|prim| {
+                let reader = prim.reader(|buffer| Some(&buffers[buffer.index()]));
+                let tex_coords = match reader.read_tex_coords(0) {
+                    Some(tcs) => tcs.into_f32().map(|tc| Vec2::from_array(tc)).collect(),
+                    None => Vec::new(),
+                };
+                let mesh_primitive = MeshPrimitive {
+                    positions: reader
+                        .read_positions()
+                        .unwrap()
+                        .map(|p| Vec3::from_array(p))
+                        .collect(),
+                    normals: reader
+                        .read_normals()
+                        .unwrap()
+                        .map(|n| Vec3::from_array(n))
+                        .collect(),
+                    tex_coords,
+                    indices: reader.read_indices().unwrap().into_u32().collect(),
+                    material_index: prim.material().index(),
+                };
+
+                mesh_primitive
+            })
+            .collect();
+
+        let mesh = Mesh { primitives };
+
+        Ok(mesh)
     }
 
     pub fn get_asset_by_id(&mut self, id: Uuid) -> Asset {

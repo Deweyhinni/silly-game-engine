@@ -16,7 +16,7 @@ use crate::{
     utils::{Shared, SharedBox},
 };
 
-use super::component::Transform3D;
+use super::component::{Component, Transform3D};
 
 #[derive(Clone, Debug)]
 pub struct EntityContainer(SharedBox<dyn Entity>);
@@ -38,7 +38,7 @@ impl Deref for EntityContainer {
     }
 }
 
-pub type EntityMap = Arc<RwLock<HashMap<Uuid, EntityContainer>>>;
+type EntityMap = Arc<RwLock<HashMap<Uuid, EntityContainer>>>;
 
 #[derive(Debug, Clone)]
 pub struct EntityRegistry {
@@ -83,14 +83,6 @@ impl IntoIterator for EntityRegistry {
     }
 }
 
-/// model trait, made for three_d for now
-// pub trait Model: Debug + Display + Send + Sync {
-//     fn model(&self) -> crate::assets::asset_manager::Model;
-//
-//     fn as_any(&self) -> &dyn std::any::Any;
-//     fn clone_box(&self) -> Box<dyn Model>;
-// }
-
 /// trait for creating game object structs
 pub trait Entity: Debug + Send + Sync {
     fn id(&self) -> Uuid;
@@ -103,6 +95,7 @@ pub trait Entity: Debug + Send + Sync {
     fn input(&mut self, event: &WindowEvent);
 
     fn as_any(&self) -> &dyn std::any::Any;
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
     fn entity_type(&self) -> TypeId;
     fn clone_box(&self) -> Box<dyn Entity>;
 
@@ -179,6 +172,9 @@ impl Entity for DefaultCamera {
     fn update(&mut self, delta: f64) {}
     fn physics_update(&mut self, delta: f64) {}
     fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
     fn entity_type(&self) -> TypeId {

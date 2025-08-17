@@ -15,15 +15,18 @@ path = "src/bin.rs"
 anyhow = "1.0.98"
 cgmath = "0.18.0"
 env_logger = "0.11.8"
-glam = "0.30.3"
+glam = "0.30.5"
 gltf = "1.4.1"
 image = "0.25.6"
 include_dir = "0.7.4"
 log = "0.4.27"
+nalgebra = "0.34.0"
+rapier3d = { version = "0.28.0", features = ["simd-nightly"] }
 three-d = { git = "https://github.com/paul2t/three-d.git", branch = "winit-0.30" }
 tracy-client = "0.17.3"
 uuid = { version = "1.17.0", features = ["rng", "v4"] }
 winit = "0.30.11"
+silly-game-engine-macros = { path = "./silly-game-engine-macros" }
 
 [features]
 default = []

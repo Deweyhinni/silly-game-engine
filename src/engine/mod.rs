@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex, RwLock},
 };
 
-use entity::{Entity, EntityMap, EntityRegistry};
+use entity::{Entity, EntityRegistry};
 use event::{EventHandler, EventHandlerCommand};
 use messages::{Message, MessageCommand};
 use uuid::Uuid;

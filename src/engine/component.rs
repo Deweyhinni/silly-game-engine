@@ -1,15 +1,69 @@
-use std::{any::Any, fmt::Debug};
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    fmt::Debug,
+};
 
 use glam::{Mat4, Quat, Vec3};
+
+pub use silly_game_engine_macros::Component as ComponentDerive;
 
 /// trait for creating components
 pub trait Component: Debug + Send + Sync {
     fn label(&self) -> &str;
     fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+pub struct ComponentRegistry {
+    components: HashMap<TypeId, Box<dyn Component>>,
+}
+
+impl ComponentRegistry {
+    pub fn new() -> Self {
+        Self {
+            components: HashMap::new(),
+        }
+    }
+
+    pub fn add<C: 'static + Component>(&mut self, component: C) {
+        self.components
+            .insert(TypeId::of::<C>(), Box::new(component));
+    }
+
+    pub fn get<C: 'static + Component>(&self) -> Option<&C> {
+        self.components
+            .get(&TypeId::of::<C>())
+            .and_then(|boxed| boxed.as_any().downcast_ref::<C>())
+    }
+
+    pub fn get_mut<C: 'static + Component>(&mut self) -> Option<&mut C> {
+        self.components
+            .get_mut(&TypeId::of::<C>())
+            .and_then(|boxed| boxed.as_any_mut().downcast_mut::<C>())
+    }
+}
+
+#[cfg(test)]
+mod component_registry_test {
+    use super::{ComponentRegistry, Transform3D};
+
+    #[test]
+    fn add_get_eq() {
+        let mut cr = ComponentRegistry::new();
+        let transform_c = Transform3D::new(
+            glam::Vec3::new(1.0, 1.0, 1.0),
+            glam::Quat::from_euler(glam::EulerRot::XYZ, 1.0, 0.0, 0.0),
+            glam::Vec3::new(1.0, 1.0, 1.0),
+        );
+        cr.add(transform_c.clone());
+        let transform_c_2 = cr.get::<Transform3D>().unwrap();
+        assert_eq!(&transform_c, transform_c_2);
+    }
 }
 
 /// 3 dimensional transform component
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, ComponentDerive)]
 pub struct Transform3D {
     pub position: Vec3,
     pub rotation: Quat,
@@ -34,15 +88,6 @@ impl Transform3D {
         Mat4::from_scale(self.scale)
     }
     pub fn transform_matrix(&self) -> Mat4 {
-        self.transform_matrix() * self.rotation_matrix() * self.scale_matrix()
-    }
-}
-
-impl Component for Transform3D {
-    fn label(&self) -> &str {
-        "Transform3D"
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
+        self.position_matrix() * self.rotation_matrix() * self.scale_matrix()
     }
 }
