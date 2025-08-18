@@ -1,2 +1,4 @@
 /target
 /silly-game-engine-macros/target/
+/unused_assets
+/assets/*

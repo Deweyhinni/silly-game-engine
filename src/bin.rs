@@ -18,14 +18,16 @@ use game_engine_lib::{
     assets::asset_manager::{Asset, AssetManager, Model},
     engine::{
         Engine,
-        component::Transform3D,
+        component::{ComponentRegistry, Transform3D},
         entity::{DefaultCamera, Entity, EntityContainer, EntityRegistry},
         event::EventHandler,
     },
+    physics::PhysicsBody,
     rendering::{EngineRenderer, RendererType},
     utils::{Shared, SharedBox, deg_to_rad, new_shared, new_shared_box},
     windowing::windower::Windower,
 };
+use rapier3d::prelude::{ColliderBuilder, RigidBodyBuilder};
 use three_d::{ColorMaterial, Context, CpuMaterial, CpuMesh, Gm, Mesh, PhysicalMaterial, Srgba};
 use uuid::Uuid;
 use winit::{
@@ -41,15 +43,21 @@ use silly_game_engine_macros;
 pub struct TestObj {
     transform: Transform3D,
     model: Option<Model>,
+    components: ComponentRegistry,
     id: Uuid,
 }
 
 impl TestObj {
-    pub fn new(transform: Transform3D, model: Option<Model>) -> Self {
+    pub fn new(
+        transform: Transform3D,
+        model: Option<Model>,
+        components: ComponentRegistry,
+    ) -> Self {
         Self {
             transform,
             model,
             id: Uuid::new_v4(),
+            components,
         }
     }
 }
@@ -111,6 +119,21 @@ impl Entity for TestObj {
                         KeyCode::KeyD => {
                             self.transform.position.x -= 1.0;
                         }
+                        KeyCode::Space => {
+                            self.transform.position.y += 1.0;
+                        }
+                        KeyCode::ShiftLeft => {
+                            self.transform.position.y -= 1.0;
+                        }
+                        KeyCode::ArrowLeft => {
+                            self.transform.rotation = self.transform.rotation
+                                * Quat::from_euler(
+                                    glam::EulerRot::XYZ,
+                                    0.0,
+                                    deg_to_rad(10.0) as f32,
+                                    0.0,
+                                )
+                        }
                         _ => (),
                     },
                     _ => (),
@@ -155,11 +178,11 @@ fn main() {
             Vec3::new(1.0, 0.0, 0.0).normalize(),
             deg_to_rad(0.0) as f32,
         ),
-        scale: Vec3::new(10.0, 10.0, 10.0),
+        scale: Vec3::new(1.0, 1.0, 1.0),
     };
 
     let (uuid, maybe_model) = asset_manager
-        .get_asset_by_path(Path::new("DamagedHelmet.glb"))
+        .get_asset_by_path(Path::new("Lantern.glb"))
         .expect("model not found");
     let model = match maybe_model.as_ref() {
         Asset::Model(m) => m,
@@ -183,7 +206,16 @@ fn main() {
 
     let camera_id = camera.id();
 
-    entities.add(TestObj::new(transform, Some(model.clone())).into_container());
+    let mut components = ComponentRegistry::new();
+    let pb = PhysicsBody::new(
+        ColliderBuilder::ball(10.0).build(),
+        RigidBodyBuilder::dynamic().build(),
+    );
+    components.add(pb);
+
+    let test_obj = TestObj::new(transform, Some(model.clone()), components);
+
+    entities.add(test_obj.into_container());
     entities.add(camera.into_container());
 
     let mut engine = Engine::new(RendererType::ThreeD, entities.clone(), camera_id);

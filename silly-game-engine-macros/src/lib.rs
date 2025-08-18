@@ -21,6 +21,9 @@ pub fn component_derive(input: TokenStream) -> TokenStream {
             fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
                 self
             }
+            fn clone_box(&self) -> Box<dyn Component> {
+                Box::new(self.clone())
+            }
         }
     };
 

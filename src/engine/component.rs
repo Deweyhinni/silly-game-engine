@@ -13,8 +13,16 @@ pub trait Component: Debug + Send + Sync {
     fn label(&self) -> &str;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn clone_box(&self) -> Box<dyn Component>;
 }
 
+impl Clone for Box<dyn Component> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct ComponentRegistry {
     components: HashMap<TypeId, Box<dyn Component>>,
 }

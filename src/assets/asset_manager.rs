@@ -241,6 +241,7 @@ impl AssetManager {
         images: &Vec<gltf::image::Data>,
     ) -> ModelNode {
         let transform = Mat4::from_cols_array_2d(&node.transform().matrix());
+        // println!("name: {:?}, transform: {:?}", node.name(), transform);
 
         let meshes = match node.mesh() {
             Some(m) => match AssetManager::gltf_mesh_to_mesh(&m, buffers) {
