@@ -81,15 +81,3 @@ impl IntoCgmath for glam::Quat {
         cgmath::Quaternion::new(self.w, self.x, self.y, self.z)
     }
 }
-
-pub trait IntoNalgebra {
-    type Output;
-    fn into_nalgebra(self) -> Self::Output;
-}
-
-impl IntoNalgebra for glam::Vec3 {
-    type Output = nalgebra::Vector3<f32>;
-    fn into_nalgebra(self) -> Self::Output {
-        nalgebra::vector![self.x, self.y, self.z]
-    }
-}

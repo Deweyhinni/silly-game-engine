@@ -1,10 +1,7 @@
 use glam::Vec3;
 use rapier3d::prelude::*;
 
-use crate::{
-    engine::entity::EntityRegistry,
-    utils::{IntoCgmath, IntoNalgebra},
-};
+use crate::{engine::entity::EntityRegistry, utils::IntoCgmath};
 
 pub struct RapierEngine {
     pub gravity: Vec3,
@@ -46,7 +43,7 @@ impl RapierEngine {
         let physics_hooks = ();
         let event_handler = ();
         self.physics_pipeline.step(
-            &self.gravity.into_nalgebra(),
+            &self.gravity.into(),
             &self.integration_parameters,
             &mut self.island_manager,
             &mut self.broad_phase,
