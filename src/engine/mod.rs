@@ -1,21 +1,18 @@
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex, RwLock},
+    time::Instant,
 };
 
 use entity::{Entity, EntityRegistry};
 use event::{EventHandler, EventHandlerCommand};
 use messages::{Message, MessageCommand};
 use uuid::Uuid;
-use winit::{
-    event_loop::EventLoop,
-    platform::run_on_demand::EventLoopExtRunOnDemand,
-    window::{Window, WindowId},
-};
+use winit::window::{Window, WindowId};
 
 use crate::{
+    physics::rapier_engine::RapierEngine,
     rendering::{EngineRenderer, Renderer, RendererCommand, RendererType},
-    utils::{Shared, SharedBox},
 };
 
 pub mod component;
@@ -31,10 +28,13 @@ pub enum EngineCommand {
 pub struct Engine {
     pub renderer: EngineRenderer,
     pub event_handler: EventHandler,
+    pub rapier_engine: RapierEngine,
 
     windows: Arc<RwLock<HashMap<WindowId, Arc<Window>>>>,
     pub default_camera_id: Uuid,
     pub objects: EntityRegistry,
+
+    last_render_time: Instant,
 }
 
 impl Engine {
@@ -46,9 +46,18 @@ impl Engine {
         Self {
             renderer: EngineRenderer::new(renderer_type, objects.clone()),
             event_handler: EventHandler::new(objects.clone()),
+            rapier_engine: RapierEngine::new(
+                glam::Vec3 {
+                    x: 0.0,
+                    y: -9.81,
+                    z: 0.0,
+                },
+                objects.clone(),
+            ),
             windows: Arc::new(RwLock::new(HashMap::new())),
             default_camera_id,
             objects,
+            last_render_time: Instant::now(),
         }
     }
 
@@ -60,11 +69,18 @@ impl Engine {
 
         self.windows = Arc::clone(&windows);
 
+        self.last_render_time = Instant::now();
+
         Ok(())
     }
 
     /// handles the rendering of a frame
     pub fn handle_render(&mut self, window: Arc<Window>) {
+        let delta = Instant::now()
+            .duration_since(self.last_render_time)
+            .as_millis_f64();
+        self.last_render_time = Instant::now();
+        self.rapier_engine.step(delta).unwrap();
         self.renderer.render(window).unwrap();
     }
 

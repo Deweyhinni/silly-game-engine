@@ -144,6 +144,13 @@ impl Entity for TestObj {
         }
     }
 
+    fn components(&self) -> &ComponentRegistry {
+        &self.components
+    }
+    fn components_mut(&mut self) -> &mut ComponentRegistry {
+        &mut self.components
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -173,7 +180,7 @@ fn main() {
     let mut asset_manager = AssetManager::new();
 
     let transform = Transform3D {
-        position: Vec3::new(0.0, 0.5, 0.0),
+        position: Vec3::new(0.0, 100.0, 0.0),
         rotation: Quat::from_axis_angle(
             Vec3::new(1.0, 0.0, 0.0).normalize(),
             deg_to_rad(0.0) as f32,
@@ -191,7 +198,7 @@ fn main() {
 
     let camera = DefaultCamera::new(
         Transform3D {
-            position: Vec3::new(0.0, 100.0, 0.0),
+            position: Vec3::new(0.0, 10.0, -10.0),
             rotation: Quat::from_euler(glam::EulerRot::XYZ, 180.0, 0.0, 0.0),
             scale: Vec3::new(1.0, 1.0, 1.0),
         },

@@ -13,6 +13,7 @@ use winit::event::WindowEvent;
 
 use crate::{
     assets::asset_manager::Model,
+    engine::component::ComponentRegistry,
     utils::{Shared, SharedBox},
 };
 
@@ -94,6 +95,9 @@ pub trait Entity: Debug + Send + Sync {
     fn physics_update(&mut self, delta: f64);
     fn input(&mut self, event: &WindowEvent);
 
+    fn components(&self) -> &ComponentRegistry;
+    fn components_mut(&mut self) -> &mut ComponentRegistry;
+
     fn as_any(&self) -> &dyn std::any::Any;
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
     fn entity_type(&self) -> TypeId;
@@ -123,6 +127,7 @@ pub trait Camera: Entity {
 #[derive(Clone, Debug)]
 pub struct DefaultCamera {
     pub transform: Transform3D,
+    components: ComponentRegistry,
     pub id: Uuid,
 
     pub width: f32,
@@ -149,6 +154,7 @@ impl DefaultCamera {
     ) -> Self {
         Self {
             transform,
+            components: ComponentRegistry::new(),
             id: Uuid::new_v4(),
             width,
             height,
@@ -185,6 +191,12 @@ impl Entity for DefaultCamera {
     }
     fn transform_mut(&mut self) -> &mut Transform3D {
         &mut self.transform
+    }
+    fn components(&self) -> &ComponentRegistry {
+        &self.components
+    }
+    fn components_mut(&mut self) -> &mut ComponentRegistry {
+        &mut self.components
     }
     fn clone_box(&self) -> Box<dyn Entity> {
         Box::new(self.clone())
