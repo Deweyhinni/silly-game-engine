@@ -61,8 +61,6 @@ impl RapierEngine {
             collider_set.insert_with_parent(body.collider.clone(), rb_handle, &mut rigid_body_set);
         }
 
-        println!("{:?}", rigid_body_set);
-
         Self {
             gravity,
             entities,
@@ -82,6 +80,7 @@ impl RapierEngine {
     pub fn step(&mut self, delta: f64) -> anyhow::Result<()> {
         let physics_hooks = ();
         let event_handler = ();
+
         self.physics_pipeline.step(
             &self.gravity.into(),
             &self.integration_parameters,

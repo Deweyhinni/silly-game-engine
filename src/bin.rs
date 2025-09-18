@@ -15,7 +15,10 @@ use glam::{Mat4, Quat, Vec3};
 
 use game_engine_lib::{
     self,
-    assets::asset_manager::{Asset, AssetManager, Model},
+    assets::{
+        asset_manager::{Asset, AssetManager, Model},
+        basic_models,
+    },
     engine::{
         Engine,
         component::{ComponentRegistry, Transform3D},
@@ -198,8 +201,13 @@ fn main() {
 
     let camera = DefaultCamera::new(
         Transform3D {
-            position: Vec3::new(0.0, 10.0, -10.0),
-            rotation: Quat::from_euler(glam::EulerRot::XYZ, 180.0, 0.0, 0.0),
+            position: Vec3::new(50.0, 50.0, -50.0),
+            rotation: Quat::from_euler(
+                glam::EulerRot::XYZ,
+                deg_to_rad(210.0) as f32,
+                deg_to_rad(30.0) as f32,
+                0.0,
+            ),
             scale: Vec3::new(1.0, 1.0, 1.0),
         },
         1920.0,
@@ -215,15 +223,38 @@ fn main() {
 
     let mut components = ComponentRegistry::new();
     let pb = PhysicsBody::new(
-        ColliderBuilder::ball(10.0).build(),
+        ColliderBuilder::cuboid(5.0, 20.0, 5.0).build(),
         RigidBodyBuilder::dynamic().build(),
     );
     components.add(pb);
 
     let test_obj = TestObj::new(transform, Some(model.clone()), components);
 
-    entities.add(test_obj.into_container());
+    let plane = TestObj::new(
+        Transform3D {
+            position: Vec3::new(0.0, -0.5, 0.0),
+            rotation: Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+            scale: Vec3::new(1.0, 1.0, 1.0),
+        },
+        Some(
+            basic_models::CuboidBuilder::new()
+                .size(100.0, 1.0, 100.0)
+                .build(),
+        ),
+        {
+            let mut creg = ComponentRegistry::new();
+            creg.add(PhysicsBody::new(
+                ColliderBuilder::cuboid(100.0, 1.0, 100.0).build(),
+                RigidBodyBuilder::fixed().build(),
+            ));
+
+            creg
+        },
+    );
+
     entities.add(camera.into_container());
+    entities.add(plane.into_container());
+    entities.add(test_obj.into_container());
 
     let mut engine = Engine::new(RendererType::ThreeD, entities.clone(), camera_id);
 
