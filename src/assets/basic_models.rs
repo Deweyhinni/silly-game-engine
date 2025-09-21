@@ -1,8 +1,13 @@
+#![allow(unused_parens, unused_braces)]
+
 use std::primitive;
 
 use glam::{Vec2, Vec3};
 
-use crate::assets::asset_manager::{self, Material, MeshPrimitive, Model, ModelNode};
+use crate::{
+    assets::asset_manager::{self, Material, MeshPrimitive, Model, ModelNode},
+    utils::deg_to_rad,
+};
 
 pub struct CuboidBuilder {
     hx: f32,
@@ -181,5 +186,92 @@ impl CuboidBuilder {
             nodes: vec![model_node],
             materials: vec![material],
         }
+    }
+}
+
+struct SphereBuilder {
+    radius: f32,
+    color: image::Rgba<u8>,
+    radial_segments: u32,
+    rings: u32,
+}
+
+impl SphereBuilder {
+    pub fn new() -> Self {
+        Self {
+            radius: 1.0,
+            color: image::Rgba::from([255, 255, 255, 255]),
+            radial_segments: 64,
+            rings: 32,
+        }
+    }
+
+    pub fn radius(mut self, radius: f32) -> Self {
+        self.radius = radius;
+        self
+    }
+
+    pub fn color(mut self, color: image::Rgba<u8>) -> Self {
+        self.color = color;
+        self
+    }
+
+    pub fn segments(mut self, radial_segments: u32, rings: u32) -> Self {
+        self.radial_segments = radial_segments;
+        self.rings = rings;
+        self
+    }
+
+    pub fn build(self) -> Model {
+        todo!()
+    }
+
+    fn uv_sphere(&self) -> MeshPrimitive {
+        let north_pole = Vec3::new(0.0, self.radius, 0.0);
+        let south_pole = Vec3::new(0.0, -self.radius, 0.0);
+
+        let rings: Vec<Vec<_>> = (0..self.rings)
+            .map(|r| {
+                let ring_y =
+                    f32::cos((deg_to_rad(180.0) as f32 / (self.rings - 1) as f32) * (r + 1) as f32);
+                let ring: Vec<_> = (0..self.radial_segments)
+                    .map(|s| {
+                        let rotation =
+                            (deg_to_rad(360.0) as f32 / self.radial_segments as f32) * (s as f32);
+                        Vec3::new(f32::cos(rotation), ring_y, f32::sin(rotation))
+                    })
+                    .collect();
+
+                ring
+            })
+            .collect();
+
+        let indices = {
+            let north_pole_indices: Vec<u32> = (1..self.radial_segments)
+                .map(|i| vec![0, i, i + 1])
+                .flatten()
+                .collect();
+
+            let middle_indices: Vec<u32> = (2..self.rings)
+                .map(|r| {
+                    ((r * self.radial_segments)..=(r * self.radial_segments + self.radial_segments))
+                        .map(|i| {
+                            vec![
+                                i,
+                                i - self.radial_segments,
+                                i + 1,
+                                i + 1,
+                                i - self.radial_segments,
+                                i + 1 - self.radial_segments,
+                            ]
+                        })
+                        .flatten()
+                        .collect::<Vec<_>>()
+                })
+                .flatten()
+                .collect();
+        };
+
+        todo!()
     }
 }

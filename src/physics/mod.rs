@@ -1,5 +1,20 @@
+pub mod commands;
 pub mod rapier_engine;
-use crate::engine::component::{Component, ComponentDerive};
+use std::{
+    sync::{Arc, Mutex, mpsc},
+    time::{Duration, Instant},
+};
+
+use crate::{
+    engine::{
+        component::{Component, ComponentDerive},
+        entity::EntityRegistry,
+    },
+    physics::{
+        commands::{PhysicsCommand, PhysicsEvent},
+        rapier_engine::RapierEngine,
+    },
+};
 use glam::{Quat, Vec3};
 use rapier3d::prelude::*;
 
@@ -25,12 +40,64 @@ impl PhysicsBody {
     }
 }
 
+pub struct PhysicsEngine {
+    physics_engine: Option<RapierEngine>,
+    command_sender: mpsc::Sender<PhysicsCommand>,
+    event_receiver: mpsc::Receiver<PhysicsEvent>,
+
+    last_physics_step: Arc<Mutex<Instant>>,
+}
+
+impl PhysicsEngine {
+    pub fn new(gravity: Vec3, entities: EntityRegistry) -> Self {
+        let (command_tx, command_rx) = mpsc::channel();
+        let (event_tx, event_rx) = mpsc::channel();
+        let rapier_engine = RapierEngine::new(gravity, entities, command_rx, event_tx);
+
+        Self {
+            command_sender: command_tx,
+            event_receiver: event_rx,
+            physics_engine: Some(rapier_engine),
+            last_physics_step: Arc::new(Mutex::new(Instant::now())),
+        }
+    }
+
+    pub fn start_physics(&mut self) -> anyhow::Result<()> {
+        let last_physics_step_mutex = self.last_physics_step.clone();
+        let mut rapier_engine = match self.physics_engine.take() {
+            Some(pe) => pe,
+            None => return Err(anyhow::anyhow!("no physics engine")),
+        };
+        std::thread::spawn(move || {
+            loop {
+                let before_step = Instant::now();
+                let delta = Instant::now()
+                    .duration_since(last_physics_step_mutex.get_cloned().unwrap())
+                    .as_millis_f64();
+                rapier_engine.step(delta).unwrap();
+                let step_time = Instant::now().duration_since(before_step).as_millis_f64();
+
+                std::thread::sleep(Duration::from_millis(
+                    10_u64.checked_sub(step_time as u64).unwrap_or(0),
+                ));
+            }
+        });
+
+        Ok(())
+    }
+
+    pub fn send_command(&mut self, command: PhysicsCommand) -> anyhow::Result<()> {
+        self.command_sender.send(command)?;
+        Ok(())
+    }
+}
+
 #[test]
 fn test_component_label() {
     use crate::engine::component::Component;
     let pb = PhysicsBody::new(
         ColliderBuilder::ball(10.0).build(),
-        RigidBodyState::Pending(RigidBodyBuilder::dynamic().build()),
+        RigidBodyBuilder::dynamic().build(),
     );
     assert_eq!(pb.label(), "PhysicsBody");
 }

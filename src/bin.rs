@@ -63,6 +63,10 @@ impl TestObj {
             components,
         }
     }
+
+    fn set_id(&mut self, id: Uuid) {
+        self.id = id
+    }
 }
 
 impl Display for TestObj {
@@ -89,8 +93,8 @@ impl Entity for TestObj {
 
     fn update(&mut self, delta: f64) {
         // self.transform.position.x += 1.0 * delta as f32;
-        self.transform.rotation =
-            self.transform.rotation * Quat::from_rotation_y(deg_to_rad(200.0 * delta) as f32);
+        // self.transform.rotation =
+        //     self.transform.rotation * Quat::from_rotation_y(deg_to_rad(200.0 * delta) as f32);
     }
 
     fn physics_update(&mut self, delta: f64) {
@@ -183,7 +187,7 @@ fn main() {
     let mut asset_manager = AssetManager::new();
 
     let transform = Transform3D {
-        position: Vec3::new(0.0, 100.0, 0.0),
+        position: Vec3::new(0.0, 300.0, 0.0),
         rotation: Quat::from_axis_angle(
             Vec3::new(1.0, 0.0, 0.0).normalize(),
             deg_to_rad(0.0) as f32,
@@ -191,17 +195,29 @@ fn main() {
         scale: Vec3::new(1.0, 1.0, 1.0),
     };
 
-    let (uuid, maybe_model) = asset_manager
-        .get_asset_by_path(Path::new("Lantern.glb"))
-        .expect("model not found");
-    let model = match maybe_model.as_ref() {
-        Asset::Model(m) => m,
-        _ => panic!("model isnt model"),
+    let lantern_model = {
+        let (uuid, maybe_model) = asset_manager
+            .get_asset_by_path(Path::new("Lantern.glb"))
+            .expect("model not found");
+        match maybe_model.as_ref() {
+            Asset::Model(m) => m.clone(),
+            _ => panic!("model isn't model"),
+        }
+    };
+
+    let avocado_model = {
+        let (uuid, maybe_model) = asset_manager
+            .get_asset_by_path(Path::new("DamagedHelmet.glb"))
+            .expect("model not found");
+        match maybe_model.as_ref() {
+            Asset::Model(m) => m.clone(),
+            _ => panic!("model isn't model"),
+        }
     };
 
     let camera = DefaultCamera::new(
         Transform3D {
-            position: Vec3::new(50.0, 50.0, -50.0),
+            position: Vec3::new(50.0, 75.0, -50.0),
             rotation: Quat::from_euler(
                 glam::EulerRot::XYZ,
                 deg_to_rad(210.0) as f32,
@@ -214,7 +230,7 @@ fn main() {
         1080.0,
         Vec3::new(0.0, 1.0, 0.0),
         Vec3::new(0.0, 0.0, -1.0),
-        deg_to_rad(90.0) as f32,
+        deg_to_rad(120.0) as f32,
         0.1,
         500.0,
     );
@@ -228,7 +244,7 @@ fn main() {
     );
     components.add(pb);
 
-    let test_obj = TestObj::new(transform, Some(model.clone()), components);
+    let test_obj = TestObj::new(transform, Some(lantern_model), components);
 
     let plane = TestObj::new(
         Transform3D {
@@ -238,13 +254,13 @@ fn main() {
         },
         Some(
             basic_models::CuboidBuilder::new()
-                .size(100.0, 1.0, 100.0)
+                .size(100.0, 20.0, 100.0)
                 .build(),
         ),
         {
             let mut creg = ComponentRegistry::new();
             creg.add(PhysicsBody::new(
-                ColliderBuilder::cuboid(100.0, 1.0, 100.0).build(),
+                ColliderBuilder::cuboid(100.0, 20.0, 100.0).build(),
                 RigidBodyBuilder::fixed().build(),
             ));
 
@@ -252,9 +268,27 @@ fn main() {
         },
     );
 
+    let avocado = TestObj::new(
+        Transform3D {
+            position: Vec3::new(0.0, 100.0, 1.0),
+            rotation: Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+            scale: Vec3::new(10.0, 10.0, 10.0),
+        },
+        Some(avocado_model),
+        {
+            let mut creg = ComponentRegistry::new();
+            creg.add(PhysicsBody::new(
+                ColliderBuilder::ball(1.0).build(),
+                RigidBodyBuilder::dynamic().build(),
+            ));
+            creg
+        },
+    );
+
     entities.add(camera.into_container());
     entities.add(plane.into_container());
     entities.add(test_obj.into_container());
+    entities.add(avocado.into_container());
 
     let mut engine = Engine::new(RendererType::ThreeD, entities.clone(), camera_id);
 

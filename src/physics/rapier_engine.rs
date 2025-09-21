@@ -1,13 +1,22 @@
+use std::sync::mpsc::{Receiver, Sender};
+
 use glam::{Quat, Vec3};
 use rapier3d::prelude::*;
+use uuid::Uuid;
 
 use crate::{
     engine::entity::EntityRegistry,
-    physics::{PhysicsBody, RigidBodyState},
+    physics::{
+        PhysicsBody, RigidBodyState,
+        commands::{PhysicsCommand, PhysicsEvent},
+    },
 };
 
 pub struct RapierEngine {
     pub gravity: Vec3,
+
+    command_receiver: Receiver<PhysicsCommand>,
+    event_sender: Sender<PhysicsEvent>,
 
     entities: EntityRegistry,
 
@@ -25,7 +34,12 @@ pub struct RapierEngine {
 }
 
 impl RapierEngine {
-    pub fn new(gravity: Vec3, entities: EntityRegistry) -> Self {
+    pub fn new(
+        gravity: Vec3,
+        entities: EntityRegistry,
+        command_receiver: Receiver<PhysicsCommand>,
+        event_sender: Sender<PhysicsEvent>,
+    ) -> Self {
         let mut rigid_body_set = RigidBodySet::new();
         let mut collider_set = ColliderSet::new();
 
@@ -63,6 +77,8 @@ impl RapierEngine {
 
         Self {
             gravity,
+            command_receiver,
+            event_sender,
             entities,
             rigid_body_set,
             collider_set,
@@ -80,6 +96,17 @@ impl RapierEngine {
     pub fn step(&mut self, delta: f64) -> anyhow::Result<()> {
         let physics_hooks = ();
         let event_handler = ();
+
+        let commands: Vec<PhysicsCommand> = self.command_receiver.try_iter().collect();
+
+        for pc in commands {
+            match self.handle_command(pc) {
+                Ok(()) => (),
+                Err(e) => {
+                    log::debug!("skipped physics command: {}", e);
+                }
+            }
+        }
 
         self.physics_pipeline.step(
             &self.gravity.into(),
@@ -123,5 +150,37 @@ impl RapierEngine {
         }
 
         Ok(())
+    }
+
+    fn handle_command(&mut self, command: PhysicsCommand) -> anyhow::Result<()> {
+        match command {
+            PhysicsCommand::ApplyForce { id, force } => self.apply_force(id, force),
+            _ => Err(anyhow::anyhow!(
+                "i haven't done this physics command yet lol"
+            )),
+        }
+    }
+
+    fn apply_force(&mut self, id: Uuid, force: Vec3) -> anyhow::Result<()> {
+        match self.entities.get(&id) {
+            Some(e) => match e.lock().unwrap().components().get::<PhysicsBody>() {
+                Some(pb) => match &pb.rigid_body {
+                    RigidBodyState::Active(handle) => {
+                        match self.rigid_body_set.get_mut(handle.clone()) {
+                            Some(rb) => Ok(rb.add_force(force.into(), true)),
+                            None => {
+                                Err(anyhow::anyhow!("rigid body handle leads to no rigid body"))
+                            }
+                        }
+                    }
+                    RigidBodyState::Removed => Err(anyhow::anyhow!("rigid body has been removed")),
+                    RigidBodyState::Pending(_rb) => {
+                        Err(anyhow::anyhow!("cannot mutate pending body"))
+                    }
+                },
+                None => Err(anyhow::anyhow!("entity has no physics body component")),
+            },
+            None => Err(anyhow::anyhow!("no entity with provided id found")),
+        }
     }
 }

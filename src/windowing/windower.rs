@@ -48,6 +48,8 @@ impl Windower {
     pub fn run(&mut self) -> anyhow::Result<()> {
         let event_loop = EventLoopBuilder::default().build().unwrap();
 
+        self.engine.init(&self.windows).unwrap();
+
         event_loop
             .run_app(self)
             .map_err(|e| anyhow::anyhow!("running app failed: {e}"))

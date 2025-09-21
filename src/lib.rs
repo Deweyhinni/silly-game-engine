@@ -1,6 +1,7 @@
 #![feature(box_into_inner)]
 #![feature(stmt_expr_attributes)]
 #![feature(duration_millis_float)]
+#![feature(lock_value_accessors)]
 pub mod assets;
 pub mod engine;
 pub mod physics;
