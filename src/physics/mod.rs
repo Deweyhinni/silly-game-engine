@@ -63,6 +63,7 @@ impl PhysicsEngine {
     }
 
     pub fn start_physics(&mut self) -> anyhow::Result<()> {
+        log::debug!("physics started");
         let last_physics_step_mutex = self.last_physics_step.clone();
         let mut rapier_engine = match self.physics_engine.take() {
             Some(pe) => pe,

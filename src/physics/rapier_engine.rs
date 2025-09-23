@@ -155,6 +155,27 @@ impl RapierEngine {
     fn handle_command(&mut self, command: PhysicsCommand) -> anyhow::Result<()> {
         match command {
             PhysicsCommand::ApplyForce { id, force } => self.apply_force(id, force),
+            PhysicsCommand::ApplyTorque { id, torque } => self.apply_torque(id, torque),
+            PhysicsCommand::ApplyImpulse { id, impulse } => self.apply_impulse(id, impulse),
+            PhysicsCommand::ApplyTorqueImpulse { id, impulse } => {
+                self.apply_torque_impulse(id, impulse)
+            }
+            PhysicsCommand::SetLinearVelocity { id, velocity } => {
+                self.set_linear_velocity(id, velocity)
+            }
+            PhysicsCommand::SetAngularVelocity { id, velocity } => {
+                self.set_angular_velocity(id, velocity)
+            }
+            PhysicsCommand::SetPosition {
+                id,
+                translation,
+                rotation,
+            } => self.set_position(id, translation, rotation),
+            PhysicsCommand::SetTranslation { id, translation } => {
+                self.set_translation(id, translation)
+            }
+            PhysicsCommand::SetRotation { id, rotation } => self.set_rotation(id, rotation),
+
             _ => Err(anyhow::anyhow!(
                 "i haven't done this physics command yet lol"
             )),
@@ -162,12 +183,69 @@ impl RapierEngine {
     }
 
     fn apply_force(&mut self, id: Uuid, force: Vec3) -> anyhow::Result<()> {
+        self.run_on_rb(id, |rb| {
+            rb.add_force(force.into(), true);
+        })
+    }
+
+    fn apply_torque(&mut self, id: Uuid, torque: Vec3) -> anyhow::Result<()> {
+        self.run_on_rb(id, |rb| {
+            rb.add_torque(torque.into(), true);
+        })
+    }
+
+    fn apply_impulse(&mut self, id: Uuid, impulse: Vec3) -> anyhow::Result<()> {
+        self.run_on_rb(id, |rb| {
+            rb.apply_impulse(impulse.into(), true);
+        })
+    }
+
+    fn apply_torque_impulse(&mut self, id: Uuid, impulse: Vec3) -> anyhow::Result<()> {
+        self.run_on_rb(id, |rb| {
+            rb.apply_torque_impulse(impulse.into(), true);
+        })
+    }
+
+    fn set_linear_velocity(&mut self, id: Uuid, velocity: Vec3) -> anyhow::Result<()> {
+        self.run_on_rb(id, |rb| {
+            rb.set_linvel(velocity.into(), true);
+        })
+    }
+
+    fn set_angular_velocity(&mut self, id: Uuid, velocity: Vec3) -> anyhow::Result<()> {
+        self.run_on_rb(id, |rb| {
+            rb.set_angvel(velocity.into(), true);
+        })
+    }
+
+    fn set_position(&mut self, id: Uuid, translation: Vec3, rotation: Quat) -> anyhow::Result<()> {
+        self.run_on_rb(id, |rb| {
+            rb.set_position((translation, rotation).into(), true);
+        })
+    }
+
+    fn set_translation(&mut self, id: Uuid, translation: Vec3) -> anyhow::Result<()> {
+        self.run_on_rb(id, |rb| {
+            rb.set_translation(translation.into(), true);
+        })
+    }
+
+    fn set_rotation(&mut self, id: Uuid, rotation: Quat) -> anyhow::Result<()> {
+        self.run_on_rb(id, |rb| {
+            rb.set_rotation(rotation.into(), true);
+        })
+    }
+
+    fn run_on_rb<F>(&mut self, id: Uuid, mut op: F) -> anyhow::Result<()>
+    where
+        F: FnMut(&mut RigidBody),
+    {
         match self.entities.get(&id) {
             Some(e) => match e.lock().unwrap().components().get::<PhysicsBody>() {
                 Some(pb) => match &pb.rigid_body {
                     RigidBodyState::Active(handle) => {
                         match self.rigid_body_set.get_mut(handle.clone()) {
-                            Some(rb) => Ok(rb.add_force(force.into(), true)),
+                            Some(rb) => Ok(op(rb)),
                             None => {
                                 Err(anyhow::anyhow!("rigid body handle leads to no rigid body"))
                             }

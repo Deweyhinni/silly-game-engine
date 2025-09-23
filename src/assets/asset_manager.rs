@@ -156,7 +156,7 @@ impl AssetManager {
     }
 
     pub fn get_asset_by_path(&mut self, path: &Path) -> Option<(Uuid, Arc<Asset>)> {
-        println!("{:?}", ASSET_DIR.files().collect::<Vec<_>>());
+        log::debug!("assets: {:?}", ASSET_DIR.files().collect::<Vec<_>>());
         if let Some(asset) = self.asset_cache.get(path) {
             Some((Uuid::nil(), Arc::clone(asset)))
         } else {

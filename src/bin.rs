@@ -3,6 +3,7 @@
 
 use std::{
     any::TypeId,
+    collections::VecDeque,
     fmt::Display,
     ops::Deref,
     path::Path,
@@ -24,8 +25,9 @@ use game_engine_lib::{
         component::{ComponentRegistry, Transform3D},
         entity::{DefaultCamera, Entity, EntityContainer, EntityRegistry},
         event::EventHandler,
+        messages::Message,
     },
-    physics::PhysicsBody,
+    physics::{PhysicsBody, commands::PhysicsCommand},
     rendering::{EngineRenderer, RendererType},
     utils::{Shared, SharedBox, deg_to_rad, new_shared, new_shared_box},
     windowing::windower::Windower,
@@ -47,6 +49,7 @@ pub struct TestObj {
     transform: Transform3D,
     model: Option<Model>,
     components: ComponentRegistry,
+    messages: VecDeque<Message>,
     id: Uuid,
 }
 
@@ -60,6 +63,7 @@ impl TestObj {
             transform,
             model,
             id: Uuid::new_v4(),
+            messages: VecDeque::new(),
             components,
         }
     }
@@ -95,6 +99,19 @@ impl Entity for TestObj {
         // self.transform.position.x += 1.0 * delta as f32;
         // self.transform.rotation =
         //     self.transform.rotation * Quat::from_rotation_y(deg_to_rad(200.0 * delta) as f32);
+
+        self.messages.push_back(Message {
+            from: game_engine_lib::engine::messages::Systems::Engine,
+            to: game_engine_lib::engine::messages::Systems::Physics,
+            context: game_engine_lib::engine::messages::MessageContext {
+                command: game_engine_lib::engine::messages::MessageCommand::PhysicsCommand(
+                    PhysicsCommand::ApplyForce {
+                        id: self.id,
+                        force: Vec3::new(0.0, 0.0, 1.0) * delta as f32,
+                    },
+                ),
+            },
+        });
     }
 
     fn physics_update(&mut self, delta: f64) {
@@ -156,6 +173,15 @@ impl Entity for TestObj {
     }
     fn components_mut(&mut self) -> &mut ComponentRegistry {
         &mut self.components
+    }
+
+    fn get_messages(
+        &self,
+    ) -> &std::collections::VecDeque<game_engine_lib::engine::messages::Message> {
+        &self.messages
+    }
+    fn clear_messages(&mut self) {
+        self.messages.clear();
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

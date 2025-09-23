@@ -1,6 +1,7 @@
 use glam::{Quat, Vec3};
 use uuid::Uuid;
 
+#[derive(Debug, Clone)]
 pub enum PhysicsCommand {
     Enable {
         id: Uuid,
@@ -43,11 +44,7 @@ pub enum PhysicsCommand {
     },
     SetRotation {
         id: Uuid,
-        translation: Vec3,
-    },
-    SetDensity {
-        id: Uuid,
-        density: f32,
+        rotation: Quat,
     },
 }
 

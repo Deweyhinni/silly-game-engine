@@ -1,6 +1,6 @@
 use std::{
     any::TypeId,
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
     sync::{Arc, Mutex, RwLock},
@@ -13,7 +13,7 @@ use winit::event::WindowEvent;
 
 use crate::{
     assets::asset_manager::Model,
-    engine::component::ComponentRegistry,
+    engine::{component::ComponentRegistry, messages::Message},
     utils::{Shared, SharedBox},
 };
 
@@ -98,6 +98,9 @@ pub trait Entity: Debug + Send + Sync {
     fn components(&self) -> &ComponentRegistry;
     fn components_mut(&mut self) -> &mut ComponentRegistry;
 
+    fn get_messages(&self) -> &VecDeque<Message>;
+    fn clear_messages(&mut self);
+
     fn as_any(&self) -> &dyn std::any::Any;
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
     fn entity_type(&self) -> TypeId;
@@ -129,6 +132,7 @@ pub struct DefaultCamera {
     pub transform: Transform3D,
     components: ComponentRegistry,
     pub id: Uuid,
+    messages: VecDeque<Message>,
 
     pub width: f32,
     pub height: f32,
@@ -156,6 +160,7 @@ impl DefaultCamera {
             transform,
             components: ComponentRegistry::new(),
             id: Uuid::new_v4(),
+            messages: VecDeque::new(),
             width,
             height,
             up,
@@ -197,6 +202,12 @@ impl Entity for DefaultCamera {
     }
     fn components_mut(&mut self) -> &mut ComponentRegistry {
         &mut self.components
+    }
+    fn get_messages(&self) -> &VecDeque<Message> {
+        &self.messages
+    }
+    fn clear_messages(&mut self) {
+        self.messages.clear();
     }
     fn clone_box(&self) -> Box<dyn Entity> {
         Box::new(self.clone())

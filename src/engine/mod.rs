@@ -96,6 +96,16 @@ impl Engine {
         let mut msg_queues = [
             self.event_handler.get_messages().clone(),
             self.renderer.get_messages().clone(),
+            self.objects
+                .clone()
+                .into_iter()
+                .map(|e| {
+                    let msgs = e.lock().unwrap().get_messages().clone();
+                    e.lock().unwrap().clear_messages();
+                    msgs
+                })
+                .flatten()
+                .collect(),
         ];
 
         self.event_handler.clear_messages();
@@ -104,7 +114,7 @@ impl Engine {
         log::info!("messages: {:?}", msg_queues);
 
         for queue in msg_queues.iter_mut() {
-            while queue.len() > 0 {
+            while !queue.is_empty() {
                 let msg = match queue.pop_front() {
                     Some(m) => m,
                     None => {
@@ -124,7 +134,7 @@ impl Engine {
         }
     }
 
-    fn handle_message(&mut self, msg: Message) -> anyhow::Result<()> {
+    pub fn handle_message(&mut self, msg: Message) -> anyhow::Result<()> {
         match msg.context.command {
             MessageCommand::RendererCommand(rc) => match rc {
                 RendererCommand::Render(wid) => self.renderer.render(Arc::clone(
@@ -186,6 +196,7 @@ impl Engine {
                         .request_redraw())
                 }
             },
+            MessageCommand::PhysicsCommand(phc) => self.physics_engine.send_command(phc),
             _ => Ok(()),
         }
     }

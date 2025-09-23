@@ -32,6 +32,8 @@ pub struct Windower {
     parent_window_id: Option<WindowId>,
     windows: Arc<RwLock<HashMap<WindowId, Arc<Window>>>>,
 
+    engine_running: bool,
+
     pub parent_window_attributes: WindowAttributes,
 }
 
@@ -41,14 +43,13 @@ impl Windower {
             engine,
             parent_window_id: Option::default(),
             windows: Arc::new(RwLock::new(HashMap::default())),
+            engine_running: false,
             parent_window_attributes: attributes,
         }
     }
 
     pub fn run(&mut self) -> anyhow::Result<()> {
         let event_loop = EventLoopBuilder::default().build().unwrap();
-
-        self.engine.init(&self.windows).unwrap();
 
         event_loop
             .run_app(self)
@@ -85,11 +86,17 @@ impl ApplicationHandler for Windower {
         let window = windows
             .get(&self.parent_window_id.expect("no window id"))
             .expect("no window");
+
         self.engine
             .renderer
             .renderer
             .init(window, &self.engine.default_camera_id)
             .unwrap();
+
+        if !self.engine_running {
+            self.engine.init(&self.windows.clone()).unwrap();
+        }
+
         window.request_redraw();
         log::info!("resumed");
     }
@@ -120,7 +127,8 @@ impl ApplicationHandler for Windower {
                     },
                 };
 
-                self.engine.handle_render(Arc::clone(window));
+                self.engine.handle_message(redraw_msg).unwrap();
+
                 let complete_msg = Message {
                     from: Systems::Windower,
                     to: Systems::Engine,
@@ -130,6 +138,8 @@ impl ApplicationHandler for Windower {
                         )),
                     },
                 };
+
+                self.engine.handle_message(complete_msg).unwrap();
             }
             winit::event::WindowEvent::Resized(_) => {
                 let msg = Message {
@@ -144,12 +154,8 @@ impl ApplicationHandler for Windower {
                 };
 
                 let _span = tracy_client::span!("Frame");
-                match self
-                    .engine
-                    .renderer
-                    .renderer
-                    .handle_resize(Arc::clone(window), &event)
-                {
+
+                match self.engine.handle_message(msg) {
                     Ok(()) => (),
                     Err(e) => {
                         log::error!("handling resize failed: {e}");
@@ -167,12 +173,11 @@ impl ApplicationHandler for Windower {
                         ))),
                     },
                 };
+
                 log::info!("close requested");
-                self.engine
-                    .renderer
-                    .renderer
-                    .handle_close(Arc::clone(window), &event)
-                    .unwrap();
+
+                self.engine.handle_message(msg).unwrap();
+
                 self.windows.write().unwrap().clear();
                 event_loop.exit();
             }

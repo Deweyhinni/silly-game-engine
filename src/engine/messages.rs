@@ -1,4 +1,7 @@
-use crate::{rendering::RendererCommand, windowing::windower::WindowerCommand};
+use crate::{
+    physics::commands::PhysicsCommand, rendering::RendererCommand,
+    windowing::windower::WindowerCommand,
+};
 
 use super::{EngineCommand, event::EventHandlerCommand};
 
@@ -8,6 +11,7 @@ pub enum Systems {
     EventHandler,
     Renderer,
     Windower,
+    Physics,
 }
 
 #[derive(Debug, Clone)]
@@ -16,6 +20,7 @@ pub enum MessageCommand {
     RendererCommand(RendererCommand),
     WindowerCommand(WindowerCommand),
     EventHandlerCommand(EventHandlerCommand),
+    PhysicsCommand(PhysicsCommand),
 }
 
 #[derive(Debug, Clone)]
