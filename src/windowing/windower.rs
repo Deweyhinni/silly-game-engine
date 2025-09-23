@@ -153,8 +153,6 @@ impl ApplicationHandler for Windower {
                     },
                 };
 
-                let _span = tracy_client::span!("Frame");
-
                 match self.engine.handle_message(msg) {
                     Ok(()) => (),
                     Err(e) => {

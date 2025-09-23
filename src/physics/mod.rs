@@ -70,7 +70,9 @@ impl PhysicsEngine {
             None => return Err(anyhow::anyhow!("no physics engine")),
         };
         std::thread::spawn(move || {
+            tracy_client::set_thread_name!("Physics Thread");
             loop {
+                let _span = tracy_client::span!("physics step");
                 let before_step = Instant::now();
                 let delta = Instant::now()
                     .duration_since(last_physics_step_mutex.get_cloned().unwrap())

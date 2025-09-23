@@ -124,6 +124,7 @@ impl RapierEngine {
         );
 
         for e in self.entities.clone().into_iter() {
+            let _span = tracy_client::span!("modifying entities");
             let mut entity = e.lock().unwrap();
             let pb = match entity.components().get::<PhysicsBody>() {
                 Some(pb) => pb,
@@ -153,6 +154,7 @@ impl RapierEngine {
     }
 
     fn handle_command(&mut self, command: PhysicsCommand) -> anyhow::Result<()> {
+        let _span = tracy_client::span!("handling command");
         match command {
             PhysicsCommand::ApplyForce { id, force } => self.apply_force(id, force),
             PhysicsCommand::ApplyTorque { id, torque } => self.apply_torque(id, torque),

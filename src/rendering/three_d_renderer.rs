@@ -307,6 +307,7 @@ fn object_get_gm_list(
     object: EntityContainer,
     context: &WindowedContext,
 ) -> anyhow::Result<Vec<Gm<Mesh, ColorMaterial>>> {
+    let _span = tracy_client::span!("getting geometry and material from entity");
     let obj = object.clone();
     let model = obj
         .lock()

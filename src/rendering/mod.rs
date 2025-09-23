@@ -75,6 +75,7 @@ impl EngineRenderer {
 
     /// renders frame
     pub fn render(&mut self, window: Arc<Window>) -> anyhow::Result<()> {
+        let _span = tracy_client::span!("Frame Render");
         self.renderer.render(window)
     }
 

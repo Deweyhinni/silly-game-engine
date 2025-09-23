@@ -156,6 +156,7 @@ impl AssetManager {
     }
 
     pub fn get_asset_by_path(&mut self, path: &Path) -> Option<(Uuid, Arc<Asset>)> {
+        let _span = tracy_client::span!("loading asset");
         log::debug!("assets: {:?}", ASSET_DIR.files().collect::<Vec<_>>());
         if let Some(asset) = self.asset_cache.get(path) {
             Some((Uuid::nil(), Arc::clone(asset)))
@@ -181,6 +182,7 @@ impl AssetManager {
         buffers: Vec<gltf::buffer::Data>,
         images: Vec<gltf::image::Data>,
     ) -> Model {
+        let _span = tracy_client::span!("gltf to model");
         let nodes = gltf
             .nodes()
             .map(|node| AssetManager::gltf_node_to_model_node(&node, &gltf, &buffers, &images))
