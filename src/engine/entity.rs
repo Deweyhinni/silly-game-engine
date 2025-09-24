@@ -13,11 +13,11 @@ use winit::event::WindowEvent;
 
 use crate::{
     assets::asset_manager::Model,
-    engine::{component::ComponentRegistry, messages::Message},
+    engine::{component::ComponentSet, messages::Message},
     utils::{Shared, SharedBox},
 };
 
-use super::component::{Component, Transform3D};
+use super::component::{Component, ComponentDerive, Transform3D};
 
 #[derive(Clone, Debug)]
 pub struct EntityContainer(SharedBox<dyn Entity>);
@@ -95,8 +95,8 @@ pub trait Entity: Debug + Send + Sync {
     fn physics_update(&mut self, delta: f64);
     fn input(&mut self, event: &WindowEvent);
 
-    fn components(&self) -> &ComponentRegistry;
-    fn components_mut(&mut self) -> &mut ComponentRegistry;
+    fn components(&self) -> &ComponentSet;
+    fn components_mut(&mut self) -> &mut ComponentSet;
 
     fn get_messages(&self) -> &VecDeque<Message>;
     fn clear_messages(&mut self);
@@ -115,6 +115,23 @@ impl Clone for Box<dyn Entity> {
     }
 }
 
+#[derive(Debug, Clone, ComponentDerive)]
+pub struct Children {
+    children: EntityMap,
+}
+
+impl Children {
+    pub fn new(children: EntityMap) -> Self {
+        Self { children }
+    }
+}
+
+#[derive(Debug, Clone, ComponentDerive)]
+pub struct Parent {
+    pub parent: Uuid,
+}
+
+/// camera trait
 pub trait Camera: Entity {
     fn view_matrix(&self) -> Mat4;
     fn projection_matrix_lh(&self) -> Mat4;
@@ -129,8 +146,7 @@ pub trait Camera: Entity {
 
 #[derive(Clone, Debug)]
 pub struct DefaultCamera {
-    pub transform: Transform3D,
-    components: ComponentRegistry,
+    components: ComponentSet,
     pub id: Uuid,
     messages: VecDeque<Message>,
 
@@ -156,9 +172,10 @@ impl DefaultCamera {
         near: f32,
         far: f32,
     ) -> Self {
+        let mut components = ComponentSet::new();
+        components.add(transform);
         Self {
-            transform,
-            components: ComponentRegistry::new(),
+            components,
             id: Uuid::new_v4(),
             messages: VecDeque::new(),
             width,
@@ -192,15 +209,15 @@ impl Entity for DefaultCamera {
         TypeId::of::<DefaultCamera>()
     }
     fn transform(&self) -> Transform3D {
-        self.transform
+        *self.components.get().unwrap()
     }
     fn transform_mut(&mut self) -> &mut Transform3D {
-        &mut self.transform
+        self.components.get_mut().unwrap()
     }
-    fn components(&self) -> &ComponentRegistry {
+    fn components(&self) -> &ComponentSet {
         &self.components
     }
-    fn components_mut(&mut self) -> &mut ComponentRegistry {
+    fn components_mut(&mut self) -> &mut ComponentSet {
         &mut self.components
     }
     fn get_messages(&self) -> &VecDeque<Message> {
@@ -219,7 +236,17 @@ impl Entity for DefaultCamera {
 
 impl Camera for DefaultCamera {
     fn view_matrix(&self) -> Mat4 {
-        (self.transform.position_matrix() * self.transform.rotation_matrix()).inverse()
+        (self
+            .components
+            .get::<Transform3D>()
+            .unwrap()
+            .position_matrix()
+            * self
+                .components
+                .get::<Transform3D>()
+                .unwrap()
+                .rotation_matrix())
+        .inverse()
     }
 
     fn projection_matrix_lh(&self) -> Mat4 {

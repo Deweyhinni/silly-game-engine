@@ -22,7 +22,7 @@ use game_engine_lib::{
     },
     engine::{
         Engine,
-        component::{ComponentRegistry, Transform3D},
+        component::{ComponentSet, Transform3D},
         entity::{DefaultCamera, Entity, EntityContainer, EntityRegistry},
         event::EventHandler,
         messages::Message,
@@ -46,21 +46,17 @@ use silly_game_engine_macros;
 
 #[derive(Debug, Clone)]
 pub struct TestObj {
-    transform: Transform3D,
     model: Option<Model>,
-    components: ComponentRegistry,
+    components: ComponentSet,
     messages: VecDeque<Message>,
     id: Uuid,
 }
 
 impl TestObj {
-    pub fn new(
-        transform: Transform3D,
-        model: Option<Model>,
-        components: ComponentRegistry,
-    ) -> Self {
+    pub fn new(transform: Transform3D, model: Option<Model>, components: ComponentSet) -> Self {
+        let mut components = components;
+        components.add(transform);
         Self {
-            transform,
             model,
             id: Uuid::new_v4(),
             messages: VecDeque::new(),
@@ -89,10 +85,10 @@ impl Entity for TestObj {
     }
 
     fn transform(&self) -> Transform3D {
-        self.transform
+        *self.components.get().unwrap()
     }
     fn transform_mut(&mut self) -> &mut Transform3D {
-        &mut self.transform
+        self.components.get_mut().unwrap()
     }
 
     fn update(&mut self, delta: f64) {
@@ -132,25 +128,25 @@ impl Entity for TestObj {
                         ..
                     } => match keycode {
                         KeyCode::KeyW => {
-                            self.transform.position.z += 1.0;
+                            self.transform().position.z += 1.0;
                         }
                         KeyCode::KeyS => {
-                            self.transform.position.z -= 1.0;
+                            self.transform().position.z -= 1.0;
                         }
                         KeyCode::KeyA => {
-                            self.transform.position.x += 1.0;
+                            self.transform().position.x += 1.0;
                         }
                         KeyCode::KeyD => {
-                            self.transform.position.x -= 1.0;
+                            self.transform().position.x -= 1.0;
                         }
                         KeyCode::Space => {
-                            self.transform.position.y += 1.0;
+                            self.transform().position.y += 1.0;
                         }
                         KeyCode::ShiftLeft => {
-                            self.transform.position.y -= 1.0;
+                            self.transform().position.y -= 1.0;
                         }
                         KeyCode::ArrowLeft => {
-                            self.transform.rotation = self.transform.rotation
+                            self.transform().rotation = self.transform().rotation
                                 * Quat::from_euler(
                                     glam::EulerRot::XYZ,
                                     0.0,
@@ -168,10 +164,10 @@ impl Entity for TestObj {
         }
     }
 
-    fn components(&self) -> &ComponentRegistry {
+    fn components(&self) -> &ComponentSet {
         &self.components
     }
-    fn components_mut(&mut self) -> &mut ComponentRegistry {
+    fn components_mut(&mut self) -> &mut ComponentSet {
         &mut self.components
     }
 
@@ -263,7 +259,7 @@ fn main() {
 
     let camera_id = camera.id();
 
-    let mut components = ComponentRegistry::new();
+    let mut components = ComponentSet::new();
     let pb = PhysicsBody::new(
         ColliderBuilder::cuboid(5.0, 20.0, 5.0).build(),
         RigidBodyBuilder::dynamic().build(),
@@ -284,7 +280,7 @@ fn main() {
                 .build(),
         ),
         {
-            let mut creg = ComponentRegistry::new();
+            let mut creg = ComponentSet::new();
             creg.add(PhysicsBody::new(
                 ColliderBuilder::cuboid(100.0, 20.0, 100.0).build(),
                 RigidBodyBuilder::fixed().build(),
@@ -302,7 +298,7 @@ fn main() {
         },
         Some(avocado_model),
         {
-            let mut creg = ComponentRegistry::new();
+            let mut creg = ComponentSet::new();
             creg.add(PhysicsBody::new(
                 ColliderBuilder::ball(1.0).build(),
                 RigidBodyBuilder::dynamic().build(),

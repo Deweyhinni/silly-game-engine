@@ -23,11 +23,11 @@ impl Clone for Box<dyn Component> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ComponentRegistry {
+pub struct ComponentSet {
     components: HashMap<TypeId, Box<dyn Component>>,
 }
 
-impl ComponentRegistry {
+impl ComponentSet {
     pub fn new() -> Self {
         Self {
             components: HashMap::new(),
@@ -37,6 +37,10 @@ impl ComponentRegistry {
     pub fn add<C: 'static + Component>(&mut self, component: C) {
         self.components
             .insert(TypeId::of::<C>(), Box::new(component));
+    }
+
+    pub fn remove<C: 'static + Component>(&mut self) -> Option<Box<dyn Component>> {
+        self.components.remove(&TypeId::of::<C>())
     }
 
     pub fn get<C: 'static + Component>(&self) -> Option<&C> {
@@ -50,15 +54,19 @@ impl ComponentRegistry {
             .get_mut(&TypeId::of::<C>())
             .and_then(|boxed| boxed.as_any_mut().downcast_mut::<C>())
     }
+
+    pub fn has<C: 'static + Component>(&mut self) -> bool {
+        self.components.contains_key(&TypeId::of::<C>())
+    }
 }
 
 #[cfg(test)]
 mod component_registry_test {
-    use super::{ComponentRegistry, Transform3D};
+    use super::{ComponentSet, Transform3D};
 
     #[test]
     fn add_get_eq() {
-        let mut cr = ComponentRegistry::new();
+        let mut cr = ComponentSet::new();
         let transform_c = Transform3D::new(
             glam::Vec3::new(1.0, 1.0, 1.0),
             glam::Quat::from_euler(glam::EulerRot::XYZ, 1.0, 0.0, 0.0),

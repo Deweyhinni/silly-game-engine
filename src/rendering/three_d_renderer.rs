@@ -78,8 +78,8 @@ impl ThreedRenderer {
             .ok_or(anyhow::anyhow!("provided entity is not a camera"))?;
 
         let mut camera = {
-            let pos = camera_entity.transform.position;
-            let rotation = camera_entity.transform.rotation;
+            let pos = camera_entity.transform().position;
+            let rotation = camera_entity.transform().rotation;
             let target = Vec3::from(pos + rotation * camera_entity.forward);
 
             Camera::new_perspective(
