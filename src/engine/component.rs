@@ -6,7 +6,7 @@ use std::{
 
 use glam::{Mat4, Quat, Vec3};
 
-pub use silly_game_engine_macros::Component as ComponentDerive;
+pub use silly_game_engine_macros::Component;
 
 /// trait for creating components
 pub trait Component: Debug + Send + Sync {
@@ -79,7 +79,7 @@ mod component_registry_test {
 }
 
 /// 3 dimensional transform component
-#[derive(Debug, Clone, Copy, PartialEq, ComponentDerive)]
+#[derive(Debug, Clone, Copy, PartialEq, Component)]
 pub struct Transform3D {
     pub position: Vec3,
     pub rotation: Quat,

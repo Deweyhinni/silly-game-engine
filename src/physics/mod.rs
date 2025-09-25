@@ -6,10 +6,7 @@ use std::{
 };
 
 use crate::{
-    engine::{
-        component::{Component, ComponentDerive},
-        entity::EntityRegistry,
-    },
+    engine::{component::Component, entity::EntityRegistry},
     physics::{
         commands::{PhysicsCommand, PhysicsEvent},
         rapier_engine::RapierEngine,
@@ -25,7 +22,7 @@ pub enum RigidBodyState {
     Removed,
 }
 
-#[derive(Debug, Clone, ComponentDerive)]
+#[derive(Debug, Clone, Component)]
 pub struct PhysicsBody {
     pub collider: Collider,
     pub rigid_body: RigidBodyState,

@@ -1,5 +1,5 @@
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
     collections::{HashMap, VecDeque},
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
@@ -17,7 +17,7 @@ use crate::{
     utils::{Shared, SharedBox},
 };
 
-use super::component::{Component, ComponentDerive, Transform3D};
+use super::component::{Component, Transform3D};
 
 #[derive(Clone, Debug)]
 pub struct EntityContainer(SharedBox<dyn Entity>);
@@ -115,20 +115,76 @@ impl Clone for Box<dyn Entity> {
     }
 }
 
-#[derive(Debug, Clone, ComponentDerive)]
+#[derive(Debug, Clone, Component)]
 pub struct Children {
-    children: EntityMap,
+    parent: Uuid,
+    children: Vec<Uuid>,
+    entities: EntityRegistry,
 }
 
 impl Children {
-    pub fn new(children: EntityMap) -> Self {
-        Self { children }
+    pub fn new(parent: Uuid, children: Vec<EntityContainer>, entities: EntityRegistry) -> Self {
+        let mut entities = entities;
+        let children_ids = children
+            .iter()
+            .map(|c| {
+                let c_id = c.id();
+                c.lock()
+                    .unwrap()
+                    .components_mut()
+                    .add(Parent::new(parent, c_id));
+                entities.add(c.clone());
+                c_id
+            })
+            .collect();
+        Self {
+            parent,
+            children: children_ids,
+            entities,
+        }
+    }
+
+    pub fn get(&self) -> Vec<EntityContainer> {
+        self.children
+            .iter()
+            .filter_map(|id| self.entities.get(id))
+            .collect()
+    }
+
+    pub fn get_ids(&self) -> &[Uuid] {
+        &self.children
+    }
+
+    pub fn get_by_type<E: 'static + Entity>(&self) -> Vec<EntityContainer> {
+        self.children
+            .iter()
+            .filter_map(|c_id| {
+                self.entities.get(c_id).and_then(|e| {
+                    if e.lock().unwrap().entity_type() == TypeId::of::<E>() {
+                        Some(e)
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect()
     }
 }
 
-#[derive(Debug, Clone, ComponentDerive)]
+#[derive(Debug, Clone, Component)]
 pub struct Parent {
-    pub parent: Uuid,
+    parent: Uuid,
+    child: Uuid,
+}
+
+impl Parent {
+    pub fn new(parent: Uuid, child: Uuid) -> Self {
+        Self { parent, child }
+    }
+
+    pub fn get_id(&self) -> Uuid {
+        self.parent
+    }
 }
 
 /// camera trait
