@@ -19,6 +19,7 @@ pub mod component;
 pub mod entity;
 pub mod event;
 pub mod messages;
+pub mod systems;
 
 #[derive(Debug, Clone)]
 pub enum EngineCommand {
