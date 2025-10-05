@@ -16,6 +16,7 @@ use crate::{
 };
 
 pub mod component;
+pub mod context;
 pub mod entity;
 pub mod event;
 pub mod messages;

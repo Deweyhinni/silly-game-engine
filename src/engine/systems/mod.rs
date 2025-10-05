@@ -6,8 +6,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-pub mod transform;
-
 /// trait for systems
 pub trait System: Debug {
     fn label(&self) -> &str;
