@@ -28,7 +28,7 @@ impl BasicTransform {
 
     pub fn add(self, rhs: Self) -> Self {
         Self {
-            translation: self.translation + rhs.translation,
+            translation: (rhs.rotation * self.translation) + rhs.translation,
             rotation: rhs.rotation * self.rotation,
             scale: self.scale + rhs.scale,
         }
