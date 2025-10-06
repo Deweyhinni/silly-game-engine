@@ -20,6 +20,7 @@ use winit::{
 };
 
 use crate::engine::component::Transform3D;
+use crate::engine::context::transform::{BasicTransform, Transform};
 use crate::engine::entity::{DefaultCamera, EntityContainer, EntityRegistry};
 use crate::engine::messages::Message;
 use crate::{
@@ -78,8 +79,15 @@ impl ThreedRenderer {
             .ok_or(anyhow::anyhow!("provided entity is not a camera"))?;
 
         let mut camera = {
-            let pos = camera_entity.transform().position;
-            let rotation = camera_entity.transform().rotation;
+            let cam_transform = camera_entity
+                .components()
+                .get::<Transform>()
+                .ok_or(anyhow::anyhow!("no transform component on camere"))?;
+            let global_transform = cam_transform
+                .global()
+                .ok_or(anyhow::anyhow!("unable to get transform from registry"))?;
+            let pos = global_transform.translation;
+            let rotation = global_transform.rotation;
             let target = Vec3::from(pos + rotation * camera_entity.forward);
 
             Camera::new_perspective(
@@ -125,13 +133,19 @@ impl ThreedRenderer {
             )
             .ok_or(anyhow::anyhow!("no camera entity"))
             .unwrap();
-        let camera_transform = camera_container
-            .lock()
-            .expect("mutex lock failed")
-            .transform();
+        let cam_lock = camera_container.lock().expect("mutex lock failed");
+        let cam_components = cam_lock.components();
 
-        let pos = camera_transform.position;
-        let rotation = camera_transform.rotation;
+        let cam_transform = cam_components
+            .get::<Transform>()
+            .ok_or(anyhow::anyhow!("no transform component on camera"))?;
+
+        let cam_global_t = cam_transform
+            .global()
+            .ok_or(anyhow::anyhow!("unable to get transform from registry"))?;
+
+        let pos = cam_global_t.translation;
+        let rotation = cam_global_t.rotation;
         let target = Vec3::from(pos + rotation * Vec3::new(0.0, 0.0, -1.0));
 
         self.camera
@@ -148,9 +162,6 @@ impl ThreedRenderer {
             .ok_or(anyhow::anyhow!("no camera"))?
             .set_viewport(frame_input.viewport);
 
-        // self.control
-        //     .handle_events(self.camera.as_mut().unwrap(), &mut frame_input.events);
-
         let delta = frame_input.elapsed_time;
 
         self.objects.clone().into_iter().for_each(|o| {
@@ -158,7 +169,23 @@ impl ThreedRenderer {
         });
 
         self.objects.clone().into_iter().for_each(|o| {
-            let transform = o.lock().expect("poisoned mutex").transform();
+            let o_lock = o.lock().expect("poisoned mutex");
+            let o_components = o_lock.components();
+            let o_transform = match o_components.get::<Transform>() {
+                Some(t) => t,
+                None => {
+                    log::info!("skipped object render because it has no transform component");
+                    return;
+                }
+            };
+
+            let global_transform = match o_transform.global() {
+                Some(t) => t,
+                None => {
+                    log::info!("skipped object render: unable to get transform from registry");
+                    return;
+                }
+            };
 
             if !self.object_gm_cache.contains_key(&o.id()) {
                 let mut gms = match object_get_gm_list(o.clone(), &self.context.as_ref().unwrap()) {
@@ -169,13 +196,13 @@ impl ThreedRenderer {
                     }
                 };
                 gms.iter_mut()
-                    .for_each(|gm| gm_update_transform(gm, &transform));
+                    .for_each(|gm| gm_update_transform(gm, &global_transform));
                 self.object_gm_cache.insert(o.id(), gms);
             };
 
             if let Some(gms) = self.object_gm_cache.get_mut(&o.id()) {
                 gms.iter_mut()
-                    .for_each(|gm| gm_update_transform(gm, &transform));
+                    .for_each(|gm| gm_update_transform(gm, &global_transform));
             };
         });
 
@@ -295,8 +322,8 @@ impl Renderer for ThreedRenderer {
     }
 }
 
-fn gm_update_transform(gm: &mut Gm<Mesh, ColorMaterial>, transform: &Transform3D) {
-    let transform_mat = Mat4::from_translation(transform.position)
+fn gm_update_transform(gm: &mut Gm<Mesh, ColorMaterial>, transform: &BasicTransform) {
+    let transform_mat = Mat4::from_translation(transform.translation)
         * Mat4::from_quat(transform.rotation)
         * Mat4::from_scale(transform.scale);
     gm.set_transformation(transform_mat.into_cgmath());

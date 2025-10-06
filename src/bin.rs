@@ -23,6 +23,10 @@ use game_engine_lib::{
     engine::{
         Engine,
         component::{ComponentSet, Transform3D},
+        context::{
+            Context,
+            transform::{BasicTransform, Transform, TransformRegistry},
+        },
         entity::{DefaultCamera, Entity, EntityContainer, EntityRegistry},
         event::EventHandler,
         messages::Message,
@@ -33,7 +37,10 @@ use game_engine_lib::{
     windowing::windower::Windower,
 };
 use rapier3d::prelude::{ColliderBuilder, RigidBodyBuilder};
-use three_d::{ColorMaterial, Context, CpuMaterial, CpuMesh, Gm, Mesh, PhysicalMaterial, Srgba};
+use three_d::{
+    ColorMaterial, Context as ThreeDContext, CpuMaterial, CpuMesh, Gm, Mesh, PhysicalMaterial,
+    Srgba,
+};
 use uuid::Uuid;
 use winit::{
     dpi::{LogicalPosition, LogicalSize},
@@ -49,18 +56,36 @@ pub struct TestObj {
     model: Option<Model>,
     components: ComponentSet,
     messages: VecDeque<Message>,
+    context: Context,
     id: Uuid,
 }
 
 impl TestObj {
-    pub fn new(transform: Transform3D, model: Option<Model>, components: ComponentSet) -> Self {
+    pub fn new(
+        transform: BasicTransform,
+        model: Option<Model>,
+        components: ComponentSet,
+        context: Context,
+    ) -> Self {
         let mut components = components;
-        components.add(transform);
+        let t = context
+            .get::<TransformRegistry>()
+            .unwrap()
+            .write()
+            .unwrap()
+            .transform(
+                transform.translation,
+                transform.rotation,
+                transform.scale,
+                None,
+            );
+        components.add(t);
         Self {
             model,
             id: Uuid::new_v4(),
             messages: VecDeque::new(),
             components,
+            context,
         }
     }
 
@@ -82,13 +107,6 @@ impl Entity for TestObj {
 
     fn model(&self) -> &Option<Model> {
         &self.model
-    }
-
-    fn transform(&self) -> Transform3D {
-        *self.components.get().unwrap()
-    }
-    fn transform_mut(&mut self) -> &mut Transform3D {
-        self.components.get_mut().unwrap()
     }
 
     fn update(&mut self, delta: f64) {
@@ -126,36 +144,41 @@ impl Entity for TestObj {
                         physical_key: PhysicalKey::Code(keycode),
                         state: ElementState::Pressed,
                         ..
-                    } => match keycode {
-                        KeyCode::KeyW => {
-                            self.transform().position.z += 1.0;
+                    } => {
+                        let mut transform = self.components().get::<Transform>().cloned().unwrap();
+                        match keycode {
+                            KeyCode::KeyW => {
+                                transform.with_mut(|t| t.translation.z += 1.0);
+                            }
+                            KeyCode::KeyS => {
+                                transform.with_mut(|t| t.translation.z -= 1.0);
+                            }
+                            KeyCode::KeyA => {
+                                transform.with_mut(|t| t.translation.x += 1.0);
+                            }
+                            KeyCode::KeyD => {
+                                transform.with_mut(|t| t.translation.x -= 1.0);
+                            }
+                            KeyCode::Space => {
+                                transform.with_mut(|t| t.translation.y += 1.0);
+                            }
+                            KeyCode::ShiftLeft => {
+                                transform.with_mut(|t| t.translation.y -= 1.0);
+                            }
+                            KeyCode::ArrowLeft => {
+                                transform.with_mut(|t| {
+                                    t.rotation = t.rotation
+                                        * Quat::from_euler(
+                                            glam::EulerRot::XYZ,
+                                            0.0,
+                                            deg_to_rad(10.0) as f32,
+                                            0.0,
+                                        )
+                                });
+                            }
+                            _ => (),
                         }
-                        KeyCode::KeyS => {
-                            self.transform().position.z -= 1.0;
-                        }
-                        KeyCode::KeyA => {
-                            self.transform().position.x += 1.0;
-                        }
-                        KeyCode::KeyD => {
-                            self.transform().position.x -= 1.0;
-                        }
-                        KeyCode::Space => {
-                            self.transform().position.y += 1.0;
-                        }
-                        KeyCode::ShiftLeft => {
-                            self.transform().position.y -= 1.0;
-                        }
-                        KeyCode::ArrowLeft => {
-                            self.transform().rotation = self.transform().rotation
-                                * Quat::from_euler(
-                                    glam::EulerRot::XYZ,
-                                    0.0,
-                                    deg_to_rad(10.0) as f32,
-                                    0.0,
-                                )
-                        }
-                        _ => (),
-                    },
+                    }
                     _ => (),
                 }
                 log::debug!("{:?}", event.logical_key)
@@ -169,6 +192,10 @@ impl Entity for TestObj {
     }
     fn components_mut(&mut self) -> &mut ComponentSet {
         &mut self.components
+    }
+
+    fn set_context(&mut self, context: Context) {
+        self.context = context;
     }
 
     fn get_messages(
@@ -204,12 +231,18 @@ fn main() {
     log::info!("logger init");
     tracy_client::Client::start();
 
-    let mut entities = EntityRegistry::new();
+    let mut context = Context::new();
+
+    let transform_registry = TransformRegistry::new(context.clone());
+
+    context.add(transform_registry);
+
+    let mut entities = EntityRegistry::new(context.clone());
 
     let mut asset_manager = AssetManager::new();
 
-    let transform = Transform3D {
-        position: Vec3::new(0.0, 300.0, 0.0),
+    let transform = BasicTransform {
+        translation: Vec3::new(0.0, 300.0, 0.0),
         rotation: Quat::from_axis_angle(
             Vec3::new(1.0, 0.0, 0.0).normalize(),
             deg_to_rad(0.0) as f32,
@@ -238,8 +271,8 @@ fn main() {
     };
 
     let camera = DefaultCamera::new(
-        Transform3D {
-            position: Vec3::new(50.0, 75.0, -50.0),
+        BasicTransform {
+            translation: Vec3::new(50.0, 75.0, -50.0),
             rotation: Quat::from_euler(
                 glam::EulerRot::XYZ,
                 deg_to_rad(210.0) as f32,
@@ -248,6 +281,7 @@ fn main() {
             ),
             scale: Vec3::new(1.0, 1.0, 1.0),
         },
+        context.clone(),
         1920.0,
         1080.0,
         Vec3::new(0.0, 1.0, 0.0),
@@ -266,11 +300,11 @@ fn main() {
     );
     components.add(pb);
 
-    let test_obj = TestObj::new(transform, Some(lantern_model), components);
+    let test_obj = TestObj::new(transform, Some(lantern_model), components, context.clone());
 
     let plane = TestObj::new(
-        Transform3D {
-            position: Vec3::new(0.0, -0.5, 0.0),
+        BasicTransform {
+            translation: Vec3::new(0.0, -0.5, 0.0),
             rotation: Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
             scale: Vec3::new(1.0, 1.0, 1.0),
         },
@@ -288,11 +322,12 @@ fn main() {
 
             creg
         },
+        context.clone(),
     );
 
     let avocado = TestObj::new(
-        Transform3D {
-            position: Vec3::new(0.0, 100.0, 1.0),
+        BasicTransform {
+            translation: Vec3::new(0.0, 100.0, 1.0),
             rotation: Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
             scale: Vec3::new(10.0, 10.0, 10.0),
         },
@@ -305,14 +340,26 @@ fn main() {
             ));
             creg
         },
+        context.clone(),
     );
+
+    println!("before entities are added to registry");
 
     entities.add(camera.into_container());
     entities.add(plane.into_container());
     entities.add(test_obj.into_container());
     entities.add(avocado.into_container());
 
-    let mut engine = Engine::new(RendererType::ThreeD, entities.clone(), camera_id);
+    println!("before engine creation");
+
+    let mut engine = Engine::new(
+        RendererType::ThreeD,
+        entities.clone(),
+        context.clone(),
+        camera_id,
+    );
+
+    println!("after engine creation");
 
     let mut windower = Windower::new(
         engine,
@@ -321,6 +368,8 @@ fn main() {
             .with_position(LogicalPosition::new(0, 0))
             .with_inner_size(LogicalSize::new(1280, 720)),
     );
+
+    println!("before windower runs");
 
     windower.run().unwrap();
 }

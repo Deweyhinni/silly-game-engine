@@ -5,7 +5,7 @@ use rapier3d::prelude::*;
 use uuid::Uuid;
 
 use crate::{
-    engine::entity::EntityRegistry,
+    engine::{context::transform::Transform, entity::EntityRegistry},
     physics::{
         PhysicsBody, RigidBodyState,
         commands::{PhysicsCommand, PhysicsEvent},
@@ -44,7 +44,12 @@ impl RapierEngine {
         let mut collider_set = ColliderSet::new();
 
         for e in entities.clone().into_iter() {
-            let transform = e.lock().unwrap().transform();
+            let e_lock = e.lock().unwrap();
+            let e_transform = e_lock
+                .components()
+                .get::<Transform>()
+                .expect("no transform component on entity");
+            let transform = e_transform.local().unwrap();
             let mut entity = e.lock().unwrap();
             let body: &mut PhysicsBody = match entity.components_mut().get_mut::<PhysicsBody>() {
                 Some(pb) => pb,
@@ -68,7 +73,7 @@ impl RapierEngine {
                 }
             };
 
-            rigid_body.set_position((transform.position, transform.rotation).into(), true);
+            rigid_body.set_position((transform.translation, transform.rotation).into(), true);
 
             let rb_handle = rigid_body_set.insert(rigid_body.clone());
             body.rigid_body = RigidBodyState::Active(rb_handle);
@@ -141,13 +146,23 @@ impl RapierEngine {
 
             let rb_pos = *rb.position();
 
-            entity.transform_mut().position = Vec3 {
-                x: rb_pos.translation.x,
-                y: rb_pos.translation.y,
-                z: rb_pos.translation.z,
+            let mut entity_transform = match entity.components().get::<Transform>().cloned() {
+                Some(t) => t,
+                None => {
+                    log::debug!("skipping entity because it has no transform component");
+                    continue;
+                }
             };
 
-            entity.transform_mut().rotation = Quat::from(rb_pos.rotation);
+            entity_transform.with_mut(|lt| {
+                lt.translation = Vec3 {
+                    x: rb_pos.translation.x,
+                    y: rb_pos.translation.y,
+                    z: rb_pos.translation.z,
+                };
+
+                lt.rotation = Quat::from(rb_pos.rotation);
+            });
         }
 
         Ok(())

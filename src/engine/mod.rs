@@ -11,6 +11,7 @@ use uuid::Uuid;
 use winit::window::{Window, WindowId};
 
 use crate::{
+    engine::context::Context,
     physics::{PhysicsEngine, rapier_engine::RapierEngine},
     rendering::{EngineRenderer, Renderer, RendererCommand, RendererType},
 };
@@ -35,6 +36,7 @@ pub struct Engine {
     windows: Arc<RwLock<HashMap<WindowId, Arc<Window>>>>,
     pub default_camera_id: Uuid,
     pub objects: EntityRegistry,
+    pub context: Context,
 
     last_frame_render: Instant,
 }
@@ -43,6 +45,7 @@ impl Engine {
     pub fn new(
         renderer_type: RendererType,
         entities: EntityRegistry,
+        context: Context,
         default_camera_id: Uuid,
     ) -> Self {
         Self {
@@ -59,6 +62,7 @@ impl Engine {
             windows: Arc::new(RwLock::new(HashMap::new())),
             default_camera_id,
             objects: entities,
+            context,
             last_frame_render: Instant::now(),
         }
     }

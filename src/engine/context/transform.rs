@@ -10,7 +10,7 @@ use crate::engine::context::{Context, ContextItem};
 pub struct TransformId(Uuid);
 
 /// a basic transform with translation, rotation, and scale
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BasicTransform {
     pub translation: Vec3,
     pub rotation: Quat,
@@ -33,6 +33,19 @@ impl BasicTransform {
             scale: self.scale + rhs.scale,
         }
     }
+
+    pub fn rotation_matrix(&self) -> glam::Mat4 {
+        glam::Mat4::from_quat(self.rotation)
+    }
+    pub fn translation_matrix(&self) -> glam::Mat4 {
+        glam::Mat4::from_translation(self.translation)
+    }
+    pub fn scale_matrix(&self) -> glam::Mat4 {
+        glam::Mat4::from_scale(self.scale)
+    }
+    pub fn matrix(&self) -> glam::Mat4 {
+        self.translation_matrix() * self.rotation_matrix() * self.scale_matrix()
+    }
 }
 
 /// the transform struct that gets stored in the registry
@@ -52,6 +65,10 @@ impl RegistryTransform {
         self.local
     }
 
+    pub fn local_mut(&mut self) -> &mut BasicTransform {
+        &mut self.local
+    }
+
     pub fn global(&self) -> BasicTransform {
         self.global
     }
@@ -65,19 +82,37 @@ pub struct Transform {
 }
 
 impl Transform {
+    pub fn id(&self) -> TransformId {
+        self.id
+    }
+
+    /// gets the local transform from the registry if it exists
     pub fn local(&self) -> Option<BasicTransform> {
         let reg = self.context.get::<TransformRegistry>()?;
         Some(reg.read().unwrap().get(self.id)?.local())
     }
 
+    /// gets the global transform from the registry if it exists
     pub fn global(&self) -> Option<BasicTransform> {
         let reg = self.context.get::<TransformRegistry>()?;
         Some(reg.read().unwrap().get(self.id)?.global())
     }
 
+    /// sets the local transform
     pub fn set(&self, transform: BasicTransform) -> Option<()> {
         let reg = self.context.get::<TransformRegistry>()?;
         reg.write().unwrap().set(self.id, transform)
+    }
+
+    /// runs provided function on the local basic transform
+    pub fn with_mut<F, R>(&mut self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut BasicTransform) -> R,
+    {
+        let reg = self.context.get::<TransformRegistry>()?;
+        let mut reg_t = reg.write().unwrap().get(self.id).unwrap();
+        let t_mut = reg_t.local_mut();
+        Some(f(t_mut))
     }
 }
 
@@ -102,7 +137,7 @@ impl TransformRegistry {
         rotation: Quat,
         scale: Vec3,
         parent: Option<TransformId>,
-    ) -> TransformId {
+    ) -> Transform {
         let transform = RegistryTransform {
             id: TransformId(Uuid::new_v4()),
             parent,
@@ -120,7 +155,10 @@ impl TransformRegistry {
 
         self.transforms.insert(transform.id, transform);
 
-        transform.id
+        Transform {
+            id: transform.id,
+            context: self.context.clone(),
+        }
     }
 
     pub fn get(&self, id: TransformId) -> Option<RegistryTransform> {
@@ -149,5 +187,50 @@ impl ContextItem for TransformRegistry {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod transform_tests {
+    use glam::Quat;
+    use glam::Vec3;
+
+    use crate::engine::context::transform::BasicTransform;
+    use crate::engine::context::transform::TransformRegistry;
+
+    fn test_registry() {
+        let mut context = crate::engine::context::Context::new();
+        let mut registry = TransformRegistry::new(context.clone());
+
+        let t1: super::Transform = registry.transform(
+            Vec3::new(1.0, 1.0, 1.0),
+            Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+            Vec3::new(1.0, 1.0, 1.0),
+            None,
+        );
+        let t2: super::Transform = registry.transform(
+            Vec3::new(1.0, 1.0, 1.0),
+            Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+            Vec3::new(1.0, 1.0, 1.0),
+            Some(t1.id()),
+        );
+
+        assert_eq!(
+            t1.local().unwrap().add(t2.local().unwrap()),
+            t2.global().unwrap()
+        );
+
+        t1.set(BasicTransform::new(
+            Vec3::new(2.0, 2.0, 2.0),
+            Quat::from_euler(glam::EulerRot::XYZ, 1.0, 1.0, 1.0),
+            Vec3::new(1.0, 1.0, 1.0),
+        ));
+
+        assert_eq!(
+            t1.local().unwrap().add(t2.local().unwrap()),
+            t2.global().unwrap()
+        );
+
+        context.add(registry);
     }
 }
