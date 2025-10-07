@@ -133,16 +133,19 @@ impl ThreedRenderer {
             )
             .ok_or(anyhow::anyhow!("no camera entity"))
             .unwrap();
-        let cam_lock = camera_container.lock().expect("mutex lock failed");
-        let cam_components = cam_lock.components();
 
-        let cam_transform = cam_components
-            .get::<Transform>()
-            .ok_or(anyhow::anyhow!("no transform component on camera"))?;
+        let cam_global_t = {
+            let cam_lock = camera_container.lock().expect("mutex lock failed");
+            let cam_components = cam_lock.components();
 
-        let cam_global_t = cam_transform
-            .global()
-            .ok_or(anyhow::anyhow!("unable to get transform from registry"))?;
+            let cam_transform = cam_components
+                .get::<Transform>()
+                .ok_or(anyhow::anyhow!("no transform component on camera"))?;
+
+            cam_transform
+                .global()
+                .ok_or(anyhow::anyhow!("unable to get transform from registry"))?
+        };
 
         let pos = cam_global_t.translation;
         let rotation = cam_global_t.rotation;
@@ -169,22 +172,26 @@ impl ThreedRenderer {
         });
 
         self.objects.clone().into_iter().for_each(|o| {
-            let o_lock = o.lock().expect("poisoned mutex");
-            let o_components = o_lock.components();
-            let o_transform = match o_components.get::<Transform>() {
-                Some(t) => t,
-                None => {
-                    log::info!("skipped object render because it has no transform component");
-                    return;
-                }
-            };
+            let global_transform = {
+                let o_lock = o.lock().expect("poisoned mutex");
+                let o_components = o_lock.components();
+                let o_transform = match o_components.get::<Transform>() {
+                    Some(t) => t,
+                    None => {
+                        log::info!("skipped object render because it has no transform component");
+                        return;
+                    }
+                };
 
-            let global_transform = match o_transform.global() {
-                Some(t) => t,
-                None => {
-                    log::info!("skipped object render: unable to get transform from registry");
-                    return;
-                }
+                let global_transform = match o_transform.global() {
+                    Some(t) => t,
+                    None => {
+                        log::info!("skipped object render: unable to get transform from registry");
+                        return;
+                    }
+                };
+
+                global_transform
             };
 
             if !self.object_gm_cache.contains_key(&o.id()) {
@@ -245,7 +252,6 @@ impl Renderer for ThreedRenderer {
     /// prepares models for rendering and starts render loop
     fn render(&mut self, window: Arc<Window>) -> anyhow::Result<()> {
         let mut frame_input_generator = FrameInputGenerator::from_winit_window(window.as_ref());
-        // self.init(window);
         let context = self
             .context
             .as_ref()

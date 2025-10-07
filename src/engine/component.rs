@@ -55,7 +55,7 @@ impl ComponentSet {
             .and_then(|boxed| boxed.as_any_mut().downcast_mut::<C>())
     }
 
-    pub fn has<C: 'static + Component>(&mut self) -> bool {
+    pub fn has<C: 'static + Component>(&self) -> bool {
         self.components.contains_key(&TypeId::of::<C>())
     }
 }

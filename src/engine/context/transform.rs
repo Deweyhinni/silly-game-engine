@@ -167,6 +167,7 @@ impl TransformRegistry {
             transform.global = self.get(parent)?.global.add(transform.local);
             Some(transform)
         } else {
+            transform.global = transform.local;
             Some(transform)
         }
     }
@@ -198,17 +199,21 @@ mod transform_tests {
     use crate::engine::context::transform::BasicTransform;
     use crate::engine::context::transform::TransformRegistry;
 
+    #[test]
     fn test_registry() {
         let mut context = crate::engine::context::Context::new();
-        let mut registry = TransformRegistry::new(context.clone());
+        let registry = TransformRegistry::new(context.clone());
+        context.add(registry);
 
-        let t1: super::Transform = registry.transform(
+        let registry = context.get::<TransformRegistry>().unwrap();
+
+        let t1: super::Transform = registry.write().unwrap().transform(
             Vec3::new(1.0, 1.0, 1.0),
             Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
             Vec3::new(1.0, 1.0, 1.0),
             None,
         );
-        let t2: super::Transform = registry.transform(
+        let t2: super::Transform = registry.write().unwrap().transform(
             Vec3::new(1.0, 1.0, 1.0),
             Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
             Vec3::new(1.0, 1.0, 1.0),
@@ -230,7 +235,31 @@ mod transform_tests {
             t1.local().unwrap().add(t2.local().unwrap()),
             t2.global().unwrap()
         );
+    }
 
+    #[test]
+    fn test_set() {
+        let mut context = crate::engine::context::Context::new();
+        let registry = TransformRegistry::new(context.clone());
         context.add(registry);
+
+        let registry = context.get::<TransformRegistry>().unwrap();
+
+        let t1: super::Transform = registry.write().unwrap().transform(
+            Vec3::new(1.0, 1.0, 1.0),
+            Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+            Vec3::new(1.0, 1.0, 1.0),
+            None,
+        );
+
+        let new_transform = BasicTransform {
+            translation: Vec3::new(10.0, 10.0, 10.0),
+            rotation: Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+            scale: Vec3::new(1.0, 1.0, 1.0),
+        };
+
+        t1.set(new_transform).unwrap();
+
+        assert_eq!(t1.local().unwrap(), new_transform);
     }
 }

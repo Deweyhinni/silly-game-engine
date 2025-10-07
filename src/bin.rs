@@ -110,10 +110,6 @@ impl Entity for TestObj {
     }
 
     fn update(&mut self, delta: f64) {
-        // self.transform.position.x += 1.0 * delta as f32;
-        // self.transform.rotation =
-        //     self.transform.rotation * Quat::from_rotation_y(deg_to_rad(200.0 * delta) as f32);
-
         self.messages.push_back(Message {
             from: game_engine_lib::engine::messages::Systems::Engine,
             to: game_engine_lib::engine::messages::Systems::Physics,
@@ -133,58 +129,58 @@ impl Entity for TestObj {
     }
 
     fn input(&mut self, event: &winit::event::WindowEvent) {
-        match event {
-            WindowEvent::KeyboardInput {
-                device_id,
-                event,
-                is_synthetic,
-            } => {
-                match event {
-                    KeyEvent {
-                        physical_key: PhysicalKey::Code(keycode),
-                        state: ElementState::Pressed,
-                        ..
-                    } => {
-                        let mut transform = self.components().get::<Transform>().cloned().unwrap();
-                        match keycode {
-                            KeyCode::KeyW => {
-                                transform.with_mut(|t| t.translation.z += 1.0);
-                            }
-                            KeyCode::KeyS => {
-                                transform.with_mut(|t| t.translation.z -= 1.0);
-                            }
-                            KeyCode::KeyA => {
-                                transform.with_mut(|t| t.translation.x += 1.0);
-                            }
-                            KeyCode::KeyD => {
-                                transform.with_mut(|t| t.translation.x -= 1.0);
-                            }
-                            KeyCode::Space => {
-                                transform.with_mut(|t| t.translation.y += 1.0);
-                            }
-                            KeyCode::ShiftLeft => {
-                                transform.with_mut(|t| t.translation.y -= 1.0);
-                            }
-                            KeyCode::ArrowLeft => {
-                                transform.with_mut(|t| {
-                                    t.rotation = t.rotation
-                                        * Quat::from_euler(
-                                            glam::EulerRot::XYZ,
-                                            0.0,
-                                            deg_to_rad(10.0) as f32,
-                                            0.0,
-                                        )
-                                });
-                            }
-                            _ => (),
-                        }
-                    }
-                    _ => (),
-                }
-                log::debug!("{:?}", event.logical_key)
-            }
-            e => log::debug!("event: {:?}", e),
-        }
+        // match event {
+        //     WindowEvent::KeyboardInput {
+        //         device_id,
+        //         event,
+        //         is_synthetic,
+        //     } => {
+        //         match event {
+        //             KeyEvent {
+        //                 physical_key: PhysicalKey::Code(keycode),
+        //                 state: ElementState::Pressed,
+        //                 ..
+        //             } => {
+        //                 let mut transform = self.components().get::<Transform>().cloned().unwrap();
+        //                 match keycode {
+        //                     KeyCode::KeyW => {
+        //                         transform.with_mut(|t| t.translation.z += 1.0);
+        //                     }
+        //                     KeyCode::KeyS => {
+        //                         transform.with_mut(|t| t.translation.z -= 1.0);
+        //                     }
+        //                     KeyCode::KeyA => {
+        //                         transform.with_mut(|t| t.translation.x += 1.0);
+        //                     }
+        //                     KeyCode::KeyD => {
+        //                         transform.with_mut(|t| t.translation.x -= 1.0);
+        //                     }
+        //                     KeyCode::Space => {
+        //                         transform.with_mut(|t| t.translation.y += 1.0);
+        //                     }
+        //                     KeyCode::ShiftLeft => {
+        //                         transform.with_mut(|t| t.translation.y -= 1.0);
+        //                     }
+        //                     KeyCode::ArrowLeft => {
+        //                         transform.with_mut(|t| {
+        //                             t.rotation = t.rotation
+        //                                 * Quat::from_euler(
+        //                                     glam::EulerRot::XYZ,
+        //                                     0.0,
+        //                                     deg_to_rad(10.0) as f32,
+        //                                     0.0,
+        //                                 )
+        //                         });
+        //                     }
+        //                     _ => (),
+        //                 }
+        //             }
+        //             _ => (),
+        //         }
+        //         log::debug!("{:?}", event.logical_key)
+        //     }
+        //     e => log::debug!("event: {:?}", e),
+        // }
     }
 
     fn components(&self) -> &ComponentSet {
@@ -343,14 +339,10 @@ fn main() {
         context.clone(),
     );
 
-    println!("before entities are added to registry");
-
     entities.add(camera.into_container());
     entities.add(plane.into_container());
     entities.add(test_obj.into_container());
     entities.add(avocado.into_container());
-
-    println!("before engine creation");
 
     let mut engine = Engine::new(
         RendererType::ThreeD,
@@ -359,8 +351,6 @@ fn main() {
         camera_id,
     );
 
-    println!("after engine creation");
-
     let mut windower = Windower::new(
         engine,
         WindowAttributes::default()
@@ -368,8 +358,6 @@ fn main() {
             .with_position(LogicalPosition::new(0, 0))
             .with_inner_size(LogicalSize::new(1280, 720)),
     );
-
-    println!("before windower runs");
 
     windower.run().unwrap();
 }

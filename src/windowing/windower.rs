@@ -107,7 +107,7 @@ impl ApplicationHandler for Windower {
         window_id: WindowId,
         event: winit::event::WindowEvent,
     ) {
-        // log::info!("window event: {:?}", event);
+        log::info!("window event: {:?}", event);
 
         let windows = self.windows.read().unwrap();
 

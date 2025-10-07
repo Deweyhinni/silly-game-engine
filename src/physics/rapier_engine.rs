@@ -5,7 +5,10 @@ use rapier3d::prelude::*;
 use uuid::Uuid;
 
 use crate::{
-    engine::{context::transform::Transform, entity::EntityRegistry},
+    engine::{
+        context::transform::{BasicTransform, Transform},
+        entity::{EntityRegistry, Parent},
+    },
     physics::{
         PhysicsBody, RigidBodyState,
         commands::{PhysicsCommand, PhysicsEvent},
@@ -44,13 +47,18 @@ impl RapierEngine {
         let mut collider_set = ColliderSet::new();
 
         for e in entities.clone().into_iter() {
-            let e_lock = e.lock().unwrap();
-            let e_transform = e_lock
+            let mut entity = e.lock().unwrap();
+
+            // if an entity has a parent it is skipped to not cause weird behaviour
+            if entity.components().has::<Parent>() {
+                continue;
+            }
+
+            let e_transform = entity
                 .components()
                 .get::<Transform>()
                 .expect("no transform component on entity");
             let transform = e_transform.local().unwrap();
-            let mut entity = e.lock().unwrap();
             let body: &mut PhysicsBody = match entity.components_mut().get_mut::<PhysicsBody>() {
                 Some(pb) => pb,
                 None => {
@@ -130,39 +138,64 @@ impl RapierEngine {
 
         for e in self.entities.clone().into_iter() {
             let _span = tracy_client::span!("modifying entities");
-            let mut entity = e.lock().unwrap();
-            let pb = match entity.components().get::<PhysicsBody>() {
-                Some(pb) => pb,
-                None => continue,
-            };
-            let rb = match &pb.rigid_body {
-                RigidBodyState::Active(handle) => self.rigid_body_set.get(*handle).unwrap(),
-                RigidBodyState::Pending(rb) => rb,
-                RigidBodyState::Removed => {
-                    log::debug!("skipped update for removed rigid body");
-                    continue;
-                }
-            };
-
-            let rb_pos = *rb.position();
-
-            let mut entity_transform = match entity.components().get::<Transform>().cloned() {
-                Some(t) => t,
-                None => {
-                    log::debug!("skipping entity because it has no transform component");
-                    continue;
-                }
-            };
-
-            entity_transform.with_mut(|lt| {
-                lt.translation = Vec3 {
-                    x: rb_pos.translation.x,
-                    y: rb_pos.translation.y,
-                    z: rb_pos.translation.z,
+            let rb_pos = {
+                let entity = e.lock().unwrap();
+                let pb = match entity.components().get::<PhysicsBody>() {
+                    Some(pb) => pb,
+                    None => continue,
+                };
+                let rb = match &pb.rigid_body {
+                    RigidBodyState::Active(handle) => self.rigid_body_set.get(*handle).unwrap(),
+                    RigidBodyState::Pending(rb) => rb,
+                    RigidBodyState::Removed => {
+                        log::debug!("skipped update for removed rigid body");
+                        continue;
+                    }
                 };
 
-                lt.rotation = Quat::from(rb_pos.rotation);
-            });
+                *rb.position()
+            };
+
+            let mut entity_transform = {
+                let entity = e.lock().unwrap();
+                match entity.components().get::<Transform>().cloned() {
+                    Some(t) => t,
+                    None => {
+                        log::debug!("skipping entity because it has no transform component");
+                        continue;
+                    }
+                }
+            };
+
+            //
+            // entity_transform.with_mut(|lt| {
+            //     lt.translation = Vec3 {
+            //         x: rb_pos.translation.x,
+            //         y: rb_pos.translation.y,
+            //         z: rb_pos.translation.z,
+            //     };
+            //
+            //     lt.rotation = Quat::from(rb_pos.rotation);
+            // });
+
+            // println!("1: {:?}", entity_transform.global());
+
+            {
+                let old_transform = match entity_transform.local() {
+                    Some(t) => t,
+                    None => continue,
+                };
+
+                let new_transform = BasicTransform::new(
+                    rb_pos.translation.into(),
+                    rb_pos.rotation.into(),
+                    old_transform.scale,
+                );
+
+                entity_transform.set(new_transform).unwrap();
+            }
+
+            // println!("2: {:?}", entity_transform.global());
         }
 
         Ok(())
