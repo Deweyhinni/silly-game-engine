@@ -24,7 +24,7 @@ use crate::{
     utils::{Shared, SharedBox},
 };
 
-use super::component::{Component, Transform3D};
+use super::component::Component;
 
 #[derive(Clone, Debug)]
 pub struct EntityContainer(SharedBox<dyn Entity>);
@@ -316,12 +316,16 @@ impl Camera for DefaultCamera {
     fn view_matrix(&self) -> Mat4 {
         (self
             .components
-            .get::<Transform3D>()
+            .get::<Transform>()
             .unwrap()
-            .position_matrix()
+            .global()
+            .unwrap()
+            .translation_matrix()
             * self
                 .components
-                .get::<Transform3D>()
+                .get::<Transform>()
+                .unwrap()
+                .global()
                 .unwrap()
                 .rotation_matrix())
         .inverse()

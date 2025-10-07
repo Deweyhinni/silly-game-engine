@@ -22,12 +22,12 @@ use game_engine_lib::{
     },
     engine::{
         Engine,
-        component::{ComponentSet, Transform3D},
+        component::ComponentSet,
         context::{
             Context,
             transform::{BasicTransform, Transform, TransformRegistry},
         },
-        entity::{DefaultCamera, Entity, EntityContainer, EntityRegistry},
+        entity::{Children, DefaultCamera, Entity, EntityContainer, EntityRegistry, Parent},
         event::EventHandler,
         messages::Message,
     },
@@ -321,9 +321,27 @@ fn main() {
         context.clone(),
     );
 
-    let avocado = TestObj::new(
+    let mut avocado = TestObj::new(
         BasicTransform {
             translation: Vec3::new(0.0, 100.0, 1.0),
+            rotation: Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
+            scale: Vec3::new(10.0, 10.0, 10.0),
+        },
+        Some(avocado_model.clone()),
+        {
+            let mut creg = ComponentSet::new();
+            creg.add(PhysicsBody::new(
+                ColliderBuilder::ball(1.0).build(),
+                RigidBodyBuilder::dynamic().build(),
+            ));
+            creg
+        },
+        context.clone(),
+    );
+
+    let mut child_avocado = TestObj::new(
+        BasicTransform {
+            translation: Vec3::new(0.0, 120.0, 1.0),
             rotation: Quat::from_euler(glam::EulerRot::XYZ, 0.0, 0.0, 0.0),
             scale: Vec3::new(10.0, 10.0, 10.0),
         },
@@ -338,6 +356,16 @@ fn main() {
         },
         context.clone(),
     );
+
+    {
+        let child_avo_container = child_avocado.into_container();
+        let avo_id = avocado.id;
+        avocado.components_mut().add(Children::new(
+            avo_id,
+            vec![child_avo_container.clone()],
+            entities.clone(),
+        ));
+    }
 
     entities.add(camera.into_container());
     entities.add(plane.into_container());

@@ -167,19 +167,6 @@ impl RapierEngine {
                 }
             };
 
-            //
-            // entity_transform.with_mut(|lt| {
-            //     lt.translation = Vec3 {
-            //         x: rb_pos.translation.x,
-            //         y: rb_pos.translation.y,
-            //         z: rb_pos.translation.z,
-            //     };
-            //
-            //     lt.rotation = Quat::from(rb_pos.rotation);
-            // });
-
-            // println!("1: {:?}", entity_transform.global());
-
             {
                 let old_transform = match entity_transform.local() {
                     Some(t) => t,
@@ -194,8 +181,6 @@ impl RapierEngine {
 
                 entity_transform.set(new_transform).unwrap();
             }
-
-            // println!("2: {:?}", entity_transform.global());
         }
 
         Ok(())

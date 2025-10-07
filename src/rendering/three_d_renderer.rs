@@ -19,7 +19,6 @@ use winit::{
     window::{Window, WindowId},
 };
 
-use crate::engine::component::Transform3D;
 use crate::engine::context::transform::{BasicTransform, Transform};
 use crate::engine::entity::{DefaultCamera, EntityContainer, EntityRegistry};
 use crate::engine::messages::Message;

@@ -60,50 +60,6 @@ impl ComponentSet {
     }
 }
 
+// TODO add tests
 #[cfg(test)]
-mod component_registry_test {
-    use super::{ComponentSet, Transform3D};
-
-    #[test]
-    fn add_get_eq() {
-        let mut cr = ComponentSet::new();
-        let transform_c = Transform3D::new(
-            glam::Vec3::new(1.0, 1.0, 1.0),
-            glam::Quat::from_euler(glam::EulerRot::XYZ, 1.0, 0.0, 0.0),
-            glam::Vec3::new(1.0, 1.0, 1.0),
-        );
-        cr.add(transform_c.clone());
-        let transform_c_2 = cr.get::<Transform3D>().unwrap();
-        assert_eq!(&transform_c, transform_c_2);
-    }
-}
-
-/// 3 dimensional transform component
-#[derive(Debug, Clone, Copy, PartialEq, Component)]
-pub struct Transform3D {
-    pub position: Vec3,
-    pub rotation: Quat,
-    pub scale: Vec3,
-}
-
-impl Transform3D {
-    pub fn new(position: Vec3, rotation: Quat, scale: Vec3) -> Self {
-        Self {
-            position,
-            rotation,
-            scale,
-        }
-    }
-    pub fn rotation_matrix(&self) -> Mat4 {
-        Mat4::from_quat(self.rotation)
-    }
-    pub fn position_matrix(&self) -> Mat4 {
-        Mat4::from_translation(self.position)
-    }
-    pub fn scale_matrix(&self) -> Mat4 {
-        Mat4::from_scale(self.scale)
-    }
-    pub fn transform_matrix(&self) -> Mat4 {
-        self.position_matrix() * self.rotation_matrix() * self.scale_matrix()
-    }
-}
+mod component_registry_test {}
